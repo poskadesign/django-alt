@@ -1,7 +1,7 @@
 #django-alt
 
 django-alt is an alternative approach to data validation and 
-RESTful endpoint definition in Django and DRF.
+REST endpoint definition in Django and DRF.
 
 ###Motives
 - No standardized way to separate *domain* and *data* logic.
@@ -43,4 +43,9 @@ class TodoSerializer(ValidatedModelSerializer):
     class Meta:
         model = Todo
         fields = '__all__'
+```
+###Installation
+**Requirements**: this package depends on `django` and `djangorestframework`.
+```
+pip install django-alt
 ```
