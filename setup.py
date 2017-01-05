@@ -7,4 +7,5 @@ setup(name='django-alt',
       author='Vilius Poška',
       author_email='vilius@poska.lt',
       license='MIT',
+      install_requires=['django', 'djangorestframework'],
       packages=['django_alt'])
