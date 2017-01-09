@@ -1,16 +1,19 @@
-from unittest import TestCase
+from unittest.mock import patch
 
+from django.test import TestCase
 from rest_framework import serializers
 
+from django_alt.abstract.serializers import BaseValidatedSerializer
 from django_alt.abstract.validators import BaseValidator
-from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
+from django_alt.serializers import ValidatedModelSerializer
 from django_alt.utils.shortcuts import invalid, invalid_if, if_in
+from tests.conf.models import ModelA
 
 
 def generate_serializer(validator_class):
     cls = validator_class
 
-    class ConcreteSerializer(ValidatedSerializer):
+    class ConcreteSerializer(BaseValidatedSerializer):
         somestring = serializers.CharField()
 
         class Meta:
@@ -29,18 +32,18 @@ def serialize(validator, data):
     return serializer.save()
 
 
-class ValidatedSerializerTests(TestCase):
+class BaseValidatedSerializerTests(TestCase):
     def setUp(self):
         self.validator_class = type('ConcreteValidator', (BaseValidator,), dict())
 
     def test_init_with_no_validator_class(self):
-        class ConcreteSerializer(ValidatedSerializer): pass
+        class ConcreteSerializer(BaseValidatedSerializer): pass
 
         with self.assertRaises(AssertionError):
             inst = ConcreteSerializer()
 
     def test_init_with_validator_class(self):
-        class ConcreteSerializer(ValidatedSerializer):
+        class ConcreteSerializer(BaseValidatedSerializer):
             pass
 
         inst = ConcreteSerializer(validator_class=self.validator_class)
@@ -49,7 +52,7 @@ class ValidatedSerializerTests(TestCase):
         self.assertEqual(inst.Meta.validator_class, self.validator_class)
 
     def test_init_with_validator_class_in_meta(self):
-        class ConcreteSerializer(ValidatedSerializer):
+        class ConcreteSerializer(BaseValidatedSerializer):
             class Meta:
                 validator_class = self.validator_class
 
@@ -134,5 +137,56 @@ class ValidatedSerializerTests(TestCase):
 
 
 class ValidatedModelSerializerTests(TestCase):
-    def test_init(self):
-        ValidatedModelSerializer
+    def setUp(self):
+        class ModelAValidator(BaseValidator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                assert hasattr(self, 'model')
+                assert self.model == ModelA
+
+            def clean(self, attrs: dict):
+                attrs['field_1'] = 'a' + attrs['field_1']
+
+            def base(self, attrs: dict):
+                attrs['field_1'] = 'a' + attrs['field_1']
+
+            def will_create(self, attrs: dict):
+                invalid_if(self.model.objects.count(), '', '')
+
+        class ModelASerializer(ValidatedModelSerializer):
+            class Meta:
+                validator_class = ModelAValidator
+                model = ModelA
+                fields = '__all__'
+
+        self.ModelAValidator = ModelAValidator
+        self.ModelASerializer = ModelASerializer
+
+    def test_create(self):
+        with patch.object(self.ModelAValidator, 'will_create') as m1:
+            with patch.object(self.ModelAValidator, 'did_create') as m2:
+                serializer = self.ModelASerializer(data={'field_1': 'somestr', 'field_2': 15})
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+
+        self.assertTrue(m1.called and m2.called)
+
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.first().field_1, 'aasomestr')
+        self.assertEqual(ModelA.objects.first().field_2, 15)
+
+    def test_update(self):
+        instance = ModelA.objects.create(field_1='otherstr', field_2=25)
+
+        with patch.object(self.ModelAValidator, 'will_update') as m1:
+            with patch.object(self.ModelAValidator, 'did_update') as m2:
+                serializer = self.ModelASerializer(instance, data={'field_1': 'somestr', 'field_2': 15})
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+
+        self.assertTrue(m1.called and m2.called)
+
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.first().id, instance.id)
+        self.assertEqual(ModelA.objects.first().field_1, 'aasomestr')
+        self.assertEqual(ModelA.objects.first().field_2, 15)

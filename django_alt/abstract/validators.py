@@ -7,6 +7,13 @@ class BaseValidator:
     Abstract class that defines the basic lifecycle hooks and definition
     principles for its subclasses
     """
+    def __init__(self, *, model=None, **context):
+        """
+        :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
+        :param [context]: any data that gets passed as serializer kwargs
+        """
+        self.model = model
+        self.context = context
 
     @abstractmethod
     def clean(self, attrs: dict) -> dict:
