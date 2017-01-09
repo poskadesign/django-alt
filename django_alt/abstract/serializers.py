@@ -8,7 +8,7 @@ from django_alt.abstract.validators import BaseValidator
 
 class BaseValidatedSerializer(serializers.Serializer):
     """
-       Defines a relation between rest_framework serializer and validator
+    Defines a relation between rest_framework serializer and validator
     """
 
     def __init__(self, instance=None, data=empty, *, validator_class=None, **kwargs):
@@ -22,6 +22,9 @@ class BaseValidatedSerializer(serializers.Serializer):
             'provided when initializing the serializer is required.'
             'Offending serializer: {0}'
         ).format(self.__class__.__qualname__)
+
+        self.permission_test = kwargs.pop('permission_test', None)
+        self.did_check_permission = False
 
         self.Meta.validator_instance = self._instantiate_validator(**kwargs)
         super().__init__(instance, data, **kwargs)
@@ -69,11 +72,13 @@ class BaseValidatedSerializer(serializers.Serializer):
 
         self.validator.base_db(attrs)
 
-        if getattr(self.validator, 'permission_test', None) is not None:
-            if not self.validator.permission_test(attrs):
-                raise PermissionError()
+        # post-permission checking for other methods
+        if self.permission_test is not None and not self.permission_test(attrs):
+            raise PermissionError()
         return attrs
 
     def to_representation(self, instance) -> OrderedDict:
         representation = super().to_representation(instance)
-        return self.validator.to_representation(representation, self.validated_data)
+        result = self.validator.to_representation(representation,
+                                                  self.validated_data if hasattr(self, '_validated_data') else None)
+        return result if result else representation

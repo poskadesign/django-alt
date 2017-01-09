@@ -1,4 +1,4 @@
-from abc import abstractmethod, abstractproperty
+from abc import abstractmethod
 from collections import OrderedDict
 
 
@@ -7,6 +7,7 @@ class BaseValidator:
     Abstract class that defines the basic lifecycle hooks and definition
     principles for its subclasses
     """
+
     def __init__(self, *, model=None, **context):
         """
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)

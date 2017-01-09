@@ -1,3 +1,4 @@
+from django.db.models import QuerySet
 from rest_framework import serializers
 
 validation_error_class = serializers.ValidationError
@@ -5,7 +6,7 @@ validation_error_class = serializers.ValidationError
 
 def invalid_if(condition, key_or_list, error_or_list):
     """
-    shortcut for raising a validation error if a condition is met
+    Shortcut for raising a validation error if a condition is met.
     :raises: serializers.ValidationError
     """
     if condition:
@@ -14,7 +15,7 @@ def invalid_if(condition, key_or_list, error_or_list):
 
 def invalid(key_or_list, error_or_list):
     """
-    shortcut for raising a validation error
+    Shortcut for raising a validation error.
     :raises: serializers.ValidationError
     """
     raise validation_error_class(make_error(key_or_list, error_or_list))
@@ -22,7 +23,7 @@ def invalid(key_or_list, error_or_list):
 
 def make_error(key_or_list, error_or_list) -> dict:
     """
-    creates a unified error object
+    Creates a unified error object.
     :param key_or_list: field name (can be None if error is a non_field one or a list of str)
     :param error_or_list: one or more string representations of the error
     """
@@ -35,13 +36,13 @@ def make_error(key_or_list, error_or_list) -> dict:
 
 def if_in(key, container, func_true=None, func_false=None):
     """
-    checks if given key on the container exists and executes
-    func_true or func_false with each corresponding value based on the outcome
+    Checks if given key on the container exists and executes.
+    func_true or func_false with each corresponding value based on the outcome.
     :param key: the key to search
     :param container: the container to search in
     :param func_true: callable that is called on success: func_true(container[key])
     :param func_false: callable that is called on fail: func_false(container[key])
-    :return: whether the key exists
+    :return: {bool} whether the key exists
     """
     if key in container and func_true is not None:
         container[key] = func_true(container[key])
@@ -49,3 +50,12 @@ def if_in(key, container, func_true=None, func_false=None):
     elif func_false is not None:
         container[key] = func_false()
         return False
+
+
+def queryset_has_many(queryset) -> bool:
+    """
+    Checks whether a given query product is iterable.
+    :param queryset: Django QuerySet object
+    :return: {bool}
+    """
+    return isinstance(queryset, QuerySet) or hasattr(queryset, '__iter__')

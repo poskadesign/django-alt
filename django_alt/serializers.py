@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from rest_framework import serializers
 
 from .abstract.serializers import BaseValidatedSerializer
@@ -22,7 +20,3 @@ class ValidatedModelSerializer(BaseValidatedSerializer, serializers.ModelSeriali
         instance = super().update(instance, validated_data)
         self.validator.did_update(instance, validated_data)
         return instance
-
-    def to_representation(self, instance) -> OrderedDict:
-        representation = super().to_representation(instance)
-        return self.validator_instance.to_representation(representation, self.validated_data)
