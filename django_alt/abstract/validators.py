@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import OrderedDict
 
 
-class BaseValidator:
+class Validator:
     """
     Abstract class that defines the basic lifecycle hooks and definition
     principles for its subclasses

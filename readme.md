@@ -12,21 +12,20 @@ REST endpoint definition in Django and DRF.
 
 This package aims to solve these problems.
 
-###Example: Todo List
+###Example: Todo list
 #####endpoints.py
 ```python
-class TodoListEndpoint(EndpointBase):
-    serializer = TodoListSerializer
+class TodoEndpoint(Endpoint):
+    serializer = TodoSerializer
     config = {
-        'get': {
-            'queryset': lambda todo, **url: todo.objects.all()
-        },
-        'post': None
+        'get, patch, delete': {
+            'queryset': lambda todo, **url: todo.objects.get(id=url['pk'])
+        }
     }
 ```
 #####validators.py
 ```python
-class TodoValidator(ModelValidator):
+class TodoValidator(Validator):
     def clean(self, attrs):
         attrs['slug'] = slugify(attrs['name'])
         
@@ -43,7 +42,31 @@ class TodoSerializer(ValidatedModelSerializer):
     class Meta:
         model = Todo
         fields = '__all__'
+        validator_class = TodoValidator
 ```
+
+###Example: endpoint customization
+#####endpoints.py
+```python
+class TodoSpecialEndpoint(Endpoint):
+    serializer = TodoSerializer
+    config = {
+        'get': {
+            'queryset': lambda todo, **url: todo.objects.all(),
+            'filters': {
+                'hot': lambda: qs, hot: qs.filter(hot=hot),
+                'confirmed': lambda: qs, confirmed: qs.filter(confirmed=confirmed)
+            }
+        }
+    }
+    
+    @classmethod
+    def can_get(cls):
+        pre_permission = lambda request, **url: not request.user.is_anonymous
+        post_permission = lambda request, queryset, attrs: not attrs.get('confirmed', False)
+        return (pre_permission, post_permission)
+```
+
 ###Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
 ```

@@ -1,14 +1,14 @@
-from django_alt.abstract.validators import BaseValidator
+from django_alt.abstract.validators import Validator
 from django_alt.endpoints import Endpoint
 from django_alt.serializers import ValidatedModelSerializer
 from django_alt.utils.shortcuts import invalid_if
 from tests.conf.models import ModelA
 
 
-class ModelAValidator(BaseValidator):
+class ModelAValidator(Validator):
     pass
 
-class ModelAValidator2(BaseValidator):
+class ModelAValidator2(Validator):
     def to_representation(self, repr_attrs, validated_attrs: dict = None):
         repr_attrs['extra'] = 'this is an extra'
         invalid_if(repr_attrs['id'] == 2, 'error', 'msg')

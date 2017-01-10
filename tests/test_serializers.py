@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework import serializers
 
 from django_alt.abstract.serializers import BaseValidatedSerializer
-from django_alt.abstract.validators import BaseValidator
+from django_alt.abstract.validators import Validator
 from django_alt.serializers import ValidatedModelSerializer
 from django_alt.utils.shortcuts import invalid, invalid_if, if_in
 from tests.conf.models import ModelA
@@ -34,7 +34,7 @@ def serialize(validator, data):
 
 class BaseValidatedSerializerTests(TestCase):
     def setUp(self):
-        self.validator_class = type('ConcreteValidator', (BaseValidator,), dict())
+        self.validator_class = type('ConcreteValidator', (Validator,), dict())
 
     def test_init_with_no_validator_class(self):
         class ConcreteSerializer(BaseValidatedSerializer): pass
@@ -60,14 +60,14 @@ class BaseValidatedSerializerTests(TestCase):
         self.assertEqual(inst.Meta.validator_class, self.validator_class)
 
     def test_create_no_validation(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             pass
 
         data = {'somestring': 'a cool string'}
         self.assertEqual(serialize(ConcreteValidator, data)['somestring'], 'a cool string')
 
     def test_create_with_validation_clean(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def clean(self, attrs: dict):
                 attrs['somestring'] = attrs['somestring'].upper()
 
@@ -75,7 +75,7 @@ class BaseValidatedSerializerTests(TestCase):
         self.assertEqual(serialize(ConcreteValidator, data)['somestring'], 'A COOL STRING')
 
     def test_create_with_validation_base(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def base(self, attrs: dict):
                 invalid_if(len(attrs['somestring']) > 5, 'somestring', 'too long')
 
@@ -90,7 +90,7 @@ class BaseValidatedSerializerTests(TestCase):
             serialize(ConcreteValidator, data)
 
     def test_create_with_validation_will_create(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def will_create(self, attrs: dict):
                 invalid_if(len(attrs['somestring']) > 5, 'somestring', 'too long')
 
@@ -99,7 +99,7 @@ class BaseValidatedSerializerTests(TestCase):
             serialize(ConcreteValidator, data)
 
     def test_create_with_validation_base_db(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def base_db(self, attrs: dict):
                 invalid('somestring', 'already in db')
 
@@ -108,7 +108,7 @@ class BaseValidatedSerializerTests(TestCase):
             serialize(ConcreteValidator, data)
 
     def test_create_with_validation_did_create(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def clean(self, attrs: dict):
                 if_in('somestring', attrs, lambda a: a.upper())
 
@@ -124,7 +124,7 @@ class BaseValidatedSerializerTests(TestCase):
         self.assertEqual(ex.exception.detail[0], 'reached')
 
     def test_create_with_validation_to_representation(self):
-        class ConcreteValidator(BaseValidator):
+        class ConcreteValidator(Validator):
             def to_representation(self, repr_attrs, validated_attrs=None):
                 repr_attrs['something'] = 1
                 return repr_attrs
@@ -138,7 +138,7 @@ class BaseValidatedSerializerTests(TestCase):
 
 class ValidatedModelSerializerTests(TestCase):
     def setUp(self):
-        class ModelAValidator(BaseValidator):
+        class ModelAValidator(Validator):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 assert hasattr(self, 'model')

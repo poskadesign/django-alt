@@ -3,7 +3,7 @@ from collections import OrderedDict
 from rest_framework import serializers
 from rest_framework.fields import empty
 
-from django_alt.abstract.validators import BaseValidator
+from django_alt.abstract.validators import Validator
 
 
 class BaseValidatedSerializer(serializers.Serializer):
@@ -37,7 +37,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         return self.Meta.validator_class(**kwargs)
 
     @property
-    def validator(self) -> BaseValidator:
+    def validator(self) -> Validator:
         """
         Fetches the validator instance bound to the serializer.
         The implementation of this behaviour varies for different
