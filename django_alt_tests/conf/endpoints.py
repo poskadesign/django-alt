@@ -2,7 +2,7 @@ from django_alt.abstract.validators import Validator
 from django_alt.endpoints import Endpoint
 from django_alt.serializers import ValidatedModelSerializer
 from django_alt.utils.shortcuts import invalid_if
-from tests.conf.models import ModelA
+from django_alt_tests.conf.models import ModelA
 
 
 class ModelAValidator(Validator):

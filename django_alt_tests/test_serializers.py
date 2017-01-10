@@ -7,7 +7,7 @@ from django_alt.abstract.serializers import BaseValidatedSerializer
 from django_alt.abstract.validators import Validator
 from django_alt.serializers import ValidatedModelSerializer
 from django_alt.utils.shortcuts import invalid, invalid_if, if_in
-from tests.conf.models import ModelA
+from django_alt_tests.conf.models import ModelA
 
 
 def generate_serializer(validator_class):

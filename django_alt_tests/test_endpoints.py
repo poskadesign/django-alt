@@ -1,13 +1,11 @@
-from unittest.mock import patch
-
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from django_alt.abstract.endpoints import MetaEndpoint
 from django_alt.endpoints import Endpoint
-from tests.conf.endpoints import ModelASerializer, ModelAEndpoint1, ModelAValidator
-from tests.conf.models import ModelA
+from django_alt_tests.conf.endpoints import ModelASerializer, ModelAEndpoint1
+from django_alt_tests.conf.models import ModelA
 
 
 class MetaEndpointTests(TestCase):
