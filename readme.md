@@ -3,7 +3,7 @@
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
-Latest version: **0.2**.
+Latest version: **0.21**.
 
 ###Motives
 - No standardized way to separate *domain* and *data* logic.
