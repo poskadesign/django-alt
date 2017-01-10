@@ -3,7 +3,12 @@
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
-Latest version: **0.21**.
+Latest version is **0.21**.
+###Installation
+**Requirements**: this package depends on `django` and `djangorestframework`.
+```
+pip install django-alt
+```
 
 ###Motives
 - No standardized way to separate *domain* and *data* logic.
@@ -67,10 +72,4 @@ class TodoSpecialEndpoint(Endpoint):
         pre_permission = lambda request, **url: not request.user.is_anonymous
         post_permission = lambda request, queryset, attrs: not attrs.get('confirmed', False)
         return (pre_permission, post_permission)
-```
-
-###Installation
-**Requirements**: this package depends on `django` and `djangorestframework`.
-```
-pip install django-alt
 ```
