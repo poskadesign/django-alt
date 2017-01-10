@@ -47,7 +47,10 @@ def _view_prototype(view_self, request, **url):
 
         if post_can is not None:
             post_can = partial(post_can, request, qs)
-        return Response(*getattr(endpoint, 'on_' + method)(request, qs, post_can, **url))
+        handler = getattr(endpoint, 'on_' + method)
+        if method == 'post':
+            return Response(*handler(request, post_can, **url))
+        return Response(*handler(request, qs, post_can, **url))
 
     except serializers.ValidationError as e:
         return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)

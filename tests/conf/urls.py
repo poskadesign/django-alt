@@ -7,4 +7,7 @@ urlpatterns = [
     url(r'^3$', e.ModelAEndpoint3.as_view(), name='e3'),
     url(r'^4$', e.ModelAEndpoint4.as_view(), name='e4'),
     url(r'^5$', e.ModelAEndpoint5.as_view(), name='e5'),
+    url(r'^6$', e.ModelAEndpoint6.as_view(), name='e6'),
+    url(r'^7$', e.ModelAEndpoint7.as_view(), name='e7'),
+    url(r'^8$', e.ModelAEndpoint8.as_view(), name='e8'),
 ]

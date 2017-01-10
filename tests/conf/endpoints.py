@@ -8,7 +8,6 @@ from tests.conf.models import ModelA
 class ModelAValidator(BaseValidator):
     pass
 
-
 class ModelAValidator2(BaseValidator):
     def to_representation(self, repr_attrs, validated_attrs: dict = None):
         repr_attrs['extra'] = 'this is an extra'
@@ -78,3 +77,30 @@ class ModelAEndpoint5(Endpoint):
     @classmethod
     def can_get(cls):
         return None, lambda request, qs, attrs: False
+
+
+class ModelAEndpoint6(Endpoint):
+    serializer = ModelASerializer
+    config = {
+        'post': None,
+        'patch': {
+            'query': lambda model_a, **_: model_a.objects.first()
+        }
+    }
+
+
+class ModelAEndpoint7(Endpoint):
+    serializer = ModelASerializer
+    config = {
+        'delete': {
+            'query': lambda model_a, **_: model_a.objects.first()
+        }
+    }
+
+class ModelAEndpoint8(Endpoint):
+    serializer = ModelASerializer
+    config = {
+        'delete': {
+            'query': lambda model_a, **_: model_a.objects.all()
+        }
+    }

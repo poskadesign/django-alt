@@ -1,3 +1,5 @@
+from django.http import Http404
+
 from django_alt.abstract.endpoints import MetaEndpoint
 from django_alt.utils.shortcuts import queryset_has_many
 
@@ -23,13 +25,80 @@ class Endpoint(metaclass=MetaEndpoint):
         Safe to raise Validation, Permission and HTTP errors
         :param request: view request object
         :param queryset: queryset from the endpoint config
-        :param [permission_test]: permission test to execute after full validation
-        :param [url]: view url kwargs
-        :return: (response_to_serialize, status_code)
+        :param permission_test: (optional) permission test to execute after full validation
+        :param url: (optional) view url kwargs
+        :return: {response_to_serialize, status_code}
         """
-        if permission_test is not None and not permission_test(None):
+        if permission_test is not None and not permission_test(request.data):
             raise PermissionError()
         return cls.serializer(queryset, many=queryset_has_many(queryset)).data, 200
+
+    @classmethod
+    def on_post(cls, request, permission_test=None, **url) -> (dict, int):
+        """
+        Default POST handler implementation
+        Must return a tuple containing the response that is fed to the serializer and a status code.
+        Safe to raise Validation, Permission and HTTP errors
+        :param request: view request object
+        :param permission_test: (optional) permission test to execute after full validation
+        :param url: (optional) view url kwargs
+        :return: {response_to_serialize, status_code}
+        """
+        is_many = isinstance(request.data, list)
+        serializer = cls.serializer(data=request.data, permission_test=permission_test, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return serializer.data, 201
+
+    @classmethod
+    def on_patch(cls, request, queryset, permission_test=None, **url) -> (dict, int):
+        """
+        Default PATCH handler implementation
+        Must return a tuple containing the response that is fed to the serializer and a status code.
+        Safe to raise Validation, Permission and HTTP errors
+        :param request: view request object
+        :param queryset: queryset from the endpoint config
+        :param [permission_test]: permission test to execute after full validation
+        :param [url]: view url kwargs
+        :return: {response_to_serialize, status_code}
+        """
+        if queryset is None:
+            raise Http404
+        if queryset_has_many(queryset):
+            raise NotImplementedError()
+        serializer = cls.serializer(queryset, data=request.data,
+                                    many=queryset_has_many(queryset),
+                                    partial=True,
+                                    permission_test=permission_test)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return serializer.data, 200
+
+    @classmethod
+    def on_put(cls, request, queryset, permission_test=None, **url) -> (dict, int):
+        raise NotImplementedError()
+
+    @classmethod
+    def on_delete(cls, request, queryset, permission_test=None, **url) -> (dict, int):
+        """
+        Default DELETE handler implementation
+        Must return a tuple containing the response that is fed to the serializer and a status code.
+        Safe to raise Validation, Permission and HTTP errors
+        :param request: view request object
+        :param queryset: queryset from the endpoint config
+        :param permission_test: (optional) permission test to execute after full validation
+        :param url: (optional) view url kwargs
+        :return: {response_to_serialize, status_code}
+        """
+        if queryset is None:
+            raise Http404
+        validator = cls.serializer.Meta.validator_class(model=cls.model)
+        validator.will_delete(queryset)
+        if permission_test and not permission_test(request.data):
+            raise PermissionError()
+        data = cls.serializer(queryset, many=queryset_has_many(queryset)).data
+        queryset.delete()
+        return data, 200
 
     """
     Default permission handler implementations

@@ -1,10 +1,12 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from django_alt.abstract.endpoints import MetaEndpoint
 from django_alt.endpoints import Endpoint
-from tests.conf.endpoints import ModelASerializer, ModelAEndpoint1
+from tests.conf.endpoints import ModelASerializer, ModelAEndpoint1, ModelAValidator
 from tests.conf.models import ModelA
 
 
@@ -177,6 +179,12 @@ class EndpointTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(dict(resp.data[0]), {'id': 1, 'field_1': 'aa', 'field_2': 5})
 
+    def test_method_not_supported(self):
+        self.assertEqual(self.client.post(reverse('e1')).status_code, 405)
+        self.assertEqual(self.client.patch(reverse('e1')).status_code, 405)
+        self.assertEqual(self.client.put(reverse('e1')).status_code, 405)
+        self.assertEqual(self.client.delete(reverse('e1')).status_code, 405)
+
     def test_raises_validation_error(self):
         ModelA.objects.create(field_1='aa', field_2=5)
         resp = self.client.get(reverse('e2'))
@@ -222,3 +230,38 @@ class EndpointTests(TestCase):
     def test_get_postcondition_permission_check(self):
         resp = self.client.get(reverse('e5'))
         self.assertEqual(resp.status_code, 401)
+
+    def test_basic_post(self):
+        resp = self.client.post(reverse('e6'), {'field_1': 'aaa', 'field_2': 3})
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, {'id': 1, 'field_1': 'aaa', 'field_2': 3})
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.all().first().field_1, 'aaa')
+        self.assertEqual(ModelA.objects.all().first().field_2, 3)
+
+    def test_basic_patch(self):
+        ModelA.objects.create(field_1='aaa', field_2=3)
+        resp = self.client.patch(reverse('e6'), {'field_1': 'bbb'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, {'id': 1, 'field_1': 'bbb', 'field_2': 3})
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.all().first().field_1, 'bbb')
+        self.assertEqual(ModelA.objects.all().first().field_2, 3)
+
+    def test_basic_delete(self):
+        ModelA.objects.create(field_1='aca', field_2=10)
+        ModelA.objects.create(field_1='ada', field_2=10)
+        ModelA.objects.create(field_1='aea', field_2=10)
+
+        resp = self.client.delete(reverse('e7'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ModelA.objects.count(), 2)
+
+    def test_delete_many(self):
+        ModelA.objects.create(field_1='aca', field_2=10)
+        ModelA.objects.create(field_1='ada', field_2=10)
+        ModelA.objects.create(field_1='aea', field_2=10)
+
+        resp = self.client.delete(reverse('e8'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ModelA.objects.count(), 0)
