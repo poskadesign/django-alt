@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.fields import empty
 
 from django_alt.abstract.validators import Validator
+from django_alt.utils.shortcuts import coal
 
 
 class BaseValidatedSerializer(serializers.Serializer):
@@ -62,15 +63,15 @@ class BaseValidatedSerializer(serializers.Serializer):
         :param attrs: a dictionary containing input attributes to validate
         :return: transformed (if necessary) attributes from input
         """
-        attrs = self.validator.clean(attrs) or attrs
-        attrs = self.validator.base(attrs) or attrs
+        attrs = coal(self.validator.clean(attrs), attrs)
+        attrs = coal(self.validator.base(attrs), attrs)
 
         if not self.is_update:
-            attrs = self.validator.will_create(attrs) or attrs
+            attrs = coal(self.validator.will_create(attrs), attrs)
         else:
-            attrs = self.validator.will_update(self.instance, attrs) or attrs
+            attrs = coal(self.validator.will_update(self.instance, attrs), attrs)
 
-        attrs = self.validator.base_db(attrs) or attrs
+        attrs = coal(self.validator.base_db(attrs), attrs)
 
         # post-permission checking for other methods
         if self.permission_test is not None and not self.permission_test(attrs):

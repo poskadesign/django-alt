@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from django_alt.utils.shortcuts import make_error, validation_error_class, invalid, invalid_if
+from django_alt.utils.shortcuts import make_error, validation_error_class, invalid, invalid_if, coal
 
 
 class UtilsShortcutsTests(TestCase):
@@ -23,3 +23,12 @@ class UtilsShortcutsTests(TestCase):
         with self.assertRaises(validation_error_class) as ex:
             invalid_if(True, 'k', 'v')
         self.assertEqual(ex.exception.detail, {'k': ['v.']})
+
+    def test_coal(self):
+        self.assertDictEqual(coal(None, {}), {})
+        self.assertDictEqual(coal(None, {'a': 5}), {'a': 5})
+        self.assertEqual(coal(1, {'a': 5}), 1)
+        self.assertEqual(coal(False, {'a': 5}), False)
+        self.assertEqual(coal(False, None), False)
+        self.assertEqual(coal(None, False), False)
+        self.assertEqual(coal(None, None), None)

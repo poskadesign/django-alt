@@ -59,3 +59,12 @@ def queryset_has_many(queryset) -> bool:
     :return: {bool}
     """
     return isinstance(queryset, QuerySet) or hasattr(queryset, '__iter__')
+
+
+def coal(obj, fallback):
+    """
+    Inspired by C# null-coalescing operator:
+    C# >>> not_null = obj ?? new Object()
+    Py >>> not_null = coal(obj, Object())
+    """
+    return obj if obj is not None else fallback

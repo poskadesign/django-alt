@@ -1,4 +1,7 @@
 #django-alt version changelog
+###0.23
+ - added `coal` null-coalescing shortcut
+ - updated `validate` attrs replacement behaviour
 ###0.22
  - added `serializer` back-reference to abstract validator
  - updated `validate` method to replace `attrs` reference, if a new object is returned from validator methods
