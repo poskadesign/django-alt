@@ -8,12 +8,13 @@ class Validator:
     principles for its subclasses
     """
 
-    def __init__(self, *, model=None, **context):
+    def __init__(self, *, model=None, serializer=None, **context):
         """
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
         :param [context]: any data that gets passed as serializer kwargs
         """
         self.model = model
+        self.serializer = serializer
         self.context = context
 
     @abstractmethod

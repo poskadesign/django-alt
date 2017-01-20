@@ -28,7 +28,7 @@ def make_error(key_or_list, error_or_list) -> dict:
     :param error_or_list: one or more string representations of the error
     """
     err = error_or_list if isinstance(error_or_list, list) else [error_or_list]
-    err = list(map(lambda e: (e if e[-1] == '.' else e + '.') if len(e) else e, err))
+    err = list(map(lambda e: (e if e[-1] == '.' or e[-1] == '!' else e + '.') if len(e) else e, err))
     if key_or_list:
         return {k: err for k in key_or_list} if isinstance(key_or_list, list) else {key_or_list: err}
     return {'non_field_errors': err}

@@ -34,7 +34,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         Annotate the serializer with an instantiated model validator class
         :return: None
         """
-        return self.Meta.validator_class(**kwargs)
+        return self.Meta.validator_class(serializer=self, **kwargs)
 
     @property
     def validator(self) -> Validator:
@@ -62,15 +62,15 @@ class BaseValidatedSerializer(serializers.Serializer):
         :param attrs: a dictionary containing input attributes to validate
         :return: transformed (if necessary) attributes from input
         """
-        self.validator.clean(attrs)
-        self.validator.base(attrs)
+        attrs = self.validator.clean(attrs) or attrs
+        attrs = self.validator.base(attrs) or attrs
 
         if not self.is_update:
-            self.validator.will_create(attrs)
+            attrs = self.validator.will_create(attrs) or attrs
         else:
-            self.validator.will_update(self.instance, attrs)
+            attrs = self.validator.will_update(self.instance, attrs) or attrs
 
-        self.validator.base_db(attrs)
+        attrs = self.validator.base_db(attrs) or attrs
 
         # post-permission checking for other methods
         if self.permission_test is not None and not self.permission_test(attrs):
