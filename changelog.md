@@ -1,4 +1,6 @@
 #django-alt version changelog
+###0.24
+ - added shortcuts `if_all_in` and `if_any_in`
 ###0.23
  - added `coal` null-coalescing shortcut
  - updated `validate` attrs replacement behaviour

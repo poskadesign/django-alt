@@ -68,3 +68,36 @@ def coal(obj, fallback):
     Py >>> not_null = coal(obj, Object())
     """
     return obj if obj is not None else fallback
+	
+
+def if_all_in(keys, container, func_true=None):
+    """
+    checks if all given keys are in the container and
+    executes func_true for each of the corresponding values
+    :param keys: iterable of keys to find
+    :param container: the container to search in
+    :param func_true: callable that is called for each value on success: func_true(container[key])
+    :return: whether the keys exist
+    """
+    if all(key in container for key in keys):
+        for key in keys:
+            container[key] = func_true(container[key])
+        return True
+    return False
+
+
+def if_any_in(keys, container, func_true=None):
+    """
+    checks if any given keys ar in the container and
+    executes func_true for each of the corresponding values of the existing keys
+    :param keys: iterable of keys to find
+    :param container: the container to search in
+    :param func_true: callable that is called for each value on success: func_true(container[key])
+    :return: whether any of the keys exist
+    """
+    found_key = False
+    for key in keys:
+        if key in container:
+            container[key] = func_true(container[key])
+            found_key = True
+    return found_key
