@@ -104,3 +104,19 @@ class ModelAEndpoint8(Endpoint):
             'query': lambda model_a, **_: model_a.objects.all()
         }
     }
+
+class ModelAEndpoint9(Endpoint):
+    serializer = ModelASerializer
+    config = {
+        'post': {
+            'fields_from_url': ('field_1', 'field_2')
+        }
+    }
+
+class ModelAEndpoint10(Endpoint):
+    serializer = ModelASerializer
+    config = {
+        'post': {
+            'fields_from_url': ('field_1', 'field_2', 'nonexistent_field')
+        }
+    }

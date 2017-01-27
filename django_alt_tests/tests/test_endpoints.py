@@ -11,7 +11,7 @@ from django_alt_tests.conf.models import ModelA
 class MetaEndpointTests(TestCase):
     def test_transform_config(self):
         def are_equal(c1, c0):
-            c1 = MetaEndpoint.transform_config(c1)
+            c1 = MetaEndpoint.transform_config_shorthands(c1)
             self.assertDictEqual(c0, c1)
 
         are_equal({
@@ -263,3 +263,25 @@ class EndpointTests(TestCase):
         resp = self.client.delete(reverse('e8'))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(ModelA.objects.count(), 0)
+
+    def test_fields_from_url(self):
+        resp = self.client.post(reverse('e9', kwargs={'field_1': 'abc', 'field_2': 123}))
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.first().field_1, 'abc')
+        self.assertEqual(ModelA.objects.first().field_2, 123)
+
+    def test_fields_from_url_override_args(self):
+        resp = self.client.post(reverse('e9', kwargs={'field_1': 'abc', 'field_2': 123}), {
+            'field_1': 'def'
+        })
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(ModelA.objects.count(), 1)
+        self.assertEqual(ModelA.objects.first().field_1, 'abc')
+        self.assertEqual(ModelA.objects.first().field_2, 123)
+
+    def test_fields_from_url_nonexistent_args(self):
+        with self.assertRaises(AssertionError) as e:
+            self.client.post(reverse('e10', kwargs={'field_1': 'abc', 'field_2': 123}), )

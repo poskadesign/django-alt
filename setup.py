@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='django-alt',
-      version='0.24',
+      version='0.3',
       description='Alternative approach to data validation and REST endpoints in Django and DRF',
       url='https://github.com/poskadesign/django-alt',
       author='Vilius Poška',

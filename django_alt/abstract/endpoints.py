@@ -1,3 +1,4 @@
+import json
 from functools import partial
 
 from django.core.exceptions import ValidationError as DjangoValidationError, ObjectDoesNotExist
@@ -11,6 +12,10 @@ from django_alt.utils.shortcuts import invalid
 
 base_view_class = APIView
 http_methods = ('get', 'post', 'patch', 'put', 'delete')
+
+KW_CONFIG_FILTERS = 'filters'
+KW_CONFIG_QUERYSET = 'query'
+KW_CONFIG_URL_FIELDS = 'fields_from_url'
 
 
 def _apply_filters(qs, filters, query_params):
@@ -35,15 +40,24 @@ def _view_prototype(view_self, request, **url):
 
     try:
         config = endpoint.config[method]
+
+        if KW_CONFIG_URL_FIELDS in config:
+            try:
+                request.data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
+            except KeyError as e:
+                raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
+                                      '`{0}` dump: {2}').format(KW_CONFIG_URL_FIELDS, view_self.endpoint_class.__name__,
+                                                                json.dumps(config[KW_CONFIG_URL_FIELDS])))
+
         qs = None
         pre_can, post_can = getattr(endpoint, 'can_' + method)()
         if pre_can is not None and not pre_can(request, **url):
             raise PermissionError()
 
-        if 'query' in config:
-            qs = config['query'](endpoint.model, **url)
-            if 'filters' in config and len(request.query_params):
-                qs = _apply_filters(qs, config['filters'], request.query_params)
+        if KW_CONFIG_QUERYSET in config:
+            qs = config[KW_CONFIG_QUERYSET](endpoint.model, **url)
+            if KW_CONFIG_FILTERS in config and len(request.query_params):
+                qs = _apply_filters(qs, config[KW_CONFIG_FILTERS], request.query_params)
 
         if post_can is not None:
             post_can = partial(post_can, request, qs)
@@ -77,7 +91,7 @@ class MetaEndpoint(type):
         return cls
 
     @staticmethod
-    def transform_config(config_dict: dict) -> dict:
+    def transform_config_shorthands(config_dict: dict) -> dict:
         result = {}
         for k, v in config_dict.items():
             if v is None:
@@ -108,7 +122,7 @@ class MetaEndpoint(type):
             assert isinstance(config, dict), (
                 'Endpoint `config` field must be of type `dict`. Offending endpoint `{0}`'
             ).format(name)
-            config = MetaEndpoint.transform_config(config)
+            config = MetaEndpoint.transform_config_shorthands(config)
 
             for method_name, contents in config.items():
                 assert method_name in http_methods, (
@@ -117,23 +131,29 @@ class MetaEndpoint(type):
                 ).format(name, http_methods, method_name)
 
                 if isinstance(contents, dict):
-                    if 'query' in contents:
+                    if KW_CONFIG_QUERYSET in contents:
                         assert callable(contents['query']), (
-                            '`query` field in Endpoint `config` must be a callable accepting '
-                            'parameters: `model` and `**url` in endpoint `{0}`'
-                        ).format(name)
+                            '`{0}` field in Endpoint `config` must be a callable accepting '
+                            'parameters: `model` and `**url` in endpoint `{1}`'
+                        ).format(KW_CONFIG_QUERYSET, name)
                         if 'filters' in contents:
-                            assert isinstance(contents['filters'], dict), (
-                                '`filters` field must be of type `dict`, containing pairs of `filter_name`, '
-                                '`filter_func(queryset, value)` in endpoint `{0}`'
-                            ).format(name)
+                            assert isinstance(contents[KW_CONFIG_FILTERS], dict), (
+                                '`{0}` field must be of type `dict`, containing pairs of `filter_name`, '
+                                '`filter_func(queryset, value)` in endpoint `{1}`'
+                            ).format(KW_CONFIG_FILTERS, name)
 
                     elif method_name == 'delete':
                         raise AssertionError(('`config` for `delete` must include '
-                                              '`query` field for endpoint `{0}`').format(name))
+                                              '`{0}` field for endpoint `{1}`').format(KW_CONFIG_QUERYSET, name))
 
-                    elif 'filters' in contents:
-                        raise AssertionError('`filters` cannot be used without `query` in endpoint `{0}`'.format(name))
+                    elif KW_CONFIG_FILTERS in contents:
+                        raise AssertionError('`{0}` cannot be used without `{1}` in endpoint `{2}`'
+                                             .format(KW_CONFIG_FILTERS, KW_CONFIG_QUERYSET, name))
+
+                    if KW_CONFIG_URL_FIELDS in contents:
+                        assert hasattr(contents[KW_CONFIG_URL_FIELDS], '__iter__'), (
+                            '`{0}` config field must be an iterable in endpoint `{1}`'
+                        ).format(KW_CONFIG_URL_FIELDS, name)
 
         clsdict['config'] = config
 

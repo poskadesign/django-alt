@@ -10,4 +10,6 @@ urlpatterns = [
     url(r'^6$', e.ModelAEndpoint6.as_view(), name='e6'),
     url(r'^7$', e.ModelAEndpoint7.as_view(), name='e7'),
     url(r'^8$', e.ModelAEndpoint8.as_view(), name='e8'),
+    url(r'^9/(?P<field_1>\w+)/(?P<field_2>[0-9]+)/$', e.ModelAEndpoint9.as_view(), name='e9'),
+    url(r'^10/(?P<field_1>\w+)/(?P<field_2>[0-9]+)/$', e.ModelAEndpoint10.as_view(), name='e10'),
 ]

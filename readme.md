@@ -3,7 +3,7 @@
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
-Latest version is **0.24**.
+Latest version is **0.3**.
 ###Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
 ```
@@ -20,6 +20,7 @@ pip install django-alt
 This package aims to solve these problems.
 
 ###Example: Todo list
+Be sure to also checkout `recipes.md` for more examples.
 #####endpoints.py
 ```python
 class TodoEndpoint(Endpoint):

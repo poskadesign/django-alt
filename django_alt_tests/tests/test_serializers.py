@@ -163,8 +163,8 @@ class ValidatedModelSerializerTests(TestCase):
         self.ModelASerializer = ModelASerializer
 
     def test_create(self):
-        with patch.object(self.ModelAValidator, 'will_create') as m1:
-            with patch.object(self.ModelAValidator, 'did_create') as m2:
+        with patch.object(self.ModelAValidator, 'will_create', return_value=None) as m1:
+            with patch.object(self.ModelAValidator, 'did_create', return_value=None) as m2:
                 serializer = self.ModelASerializer(data={'field_1': 'somestr', 'field_2': 15})
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
@@ -178,8 +178,8 @@ class ValidatedModelSerializerTests(TestCase):
     def test_update(self):
         instance = ModelA.objects.create(field_1='otherstr', field_2=25)
 
-        with patch.object(self.ModelAValidator, 'will_update') as m1:
-            with patch.object(self.ModelAValidator, 'did_update') as m2:
+        with patch.object(self.ModelAValidator, 'will_update', return_value=None) as m1:
+            with patch.object(self.ModelAValidator, 'did_update', return_value=None) as m2:
                 serializer = self.ModelASerializer(instance, data={'field_1': 'somestr', 'field_2': 15})
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
