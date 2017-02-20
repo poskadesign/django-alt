@@ -17,7 +17,7 @@ class Todo(models.Model):
         return (timezone.now() - self.date_created) < timedelta(hours=12)
 ```
 Then let's create a `Validator`, that will:
- - constrain the values that the model can be constructed from,
+ - constrain the values that the model can be constructed from (individually and mutually),
  - prepare (clean) these values before construction,
  - allow access to the model's lifecycle,
 ```python
@@ -26,13 +26,18 @@ class TodoValidator(Validator):
     def clean(self, attrs):
         # generate a slug for the TODO
         attrs['slug'] = slugify(attrs['text'])
+        
+    def check_text(self, text):
+        # we only allow TODOs that are more then 5 characters long
+        invalid_if(len(text) <= 5, 'text', 'The text is to short!')
     
     def base(self, attrs):
-        # we only allow TODOs that are more then 5 characters long
-        invalid_if(len(attrs['text']) <= 5, 'text', 'The text is to short!')
+        # perform validation that concerns multiple fields
+        if len(attrs['text']) > 200 and not attrs['author'].is_active:
+            invalid(('author', 'text'), 'Confirm account to post long TODOs!')
     
     def did_create(self, instance, validated_attrs):
-        # send emails to people that care about new TODOs
+        # send emails to people who care about new TODOs
         inform_subscribers(instance)
         
 ```

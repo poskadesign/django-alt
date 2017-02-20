@@ -11,6 +11,7 @@ class BaseValidatedSerializer(serializers.Serializer):
     """
     Defines a relation between rest_framework serializer and validator
     """
+    FIELD_VALIDATION_PREFIX = 'check_'
 
     def __init__(self, instance=None, data=empty, *, validator_class=None, **kwargs):
         if not hasattr(self, 'Meta'):
@@ -56,6 +57,20 @@ class BaseValidatedSerializer(serializers.Serializer):
         """
         return hasattr(self, 'instance') and self.instance is not None
 
+    def validate_fields(self, attrs: dict):
+        """
+        If subclass defines functions named validate_<field_name>
+        where field_name corresponds to a field declared on the
+        serializer, executes such functions with the field's value
+        as a parameter.
+        :return: None
+        """
+        fields = self.fields.fields.keys()
+        for field in fields:
+            name = self.FIELD_VALIDATION_PREFIX + field
+            if hasattr(self.validator, name) and callable(getattr(self.validator, name)) and field in attrs:
+                getattr(self.validator, name)(attrs[field])
+
     def validate(self, attrs: dict) -> dict:
         """
         Performs attribute validation before passing them to
@@ -65,6 +80,8 @@ class BaseValidatedSerializer(serializers.Serializer):
         """
         attrs = coal(self.validator.clean(attrs), attrs)
         attrs = coal(self.validator.base(attrs), attrs)
+
+        self.validate_fields(attrs)
 
         if not self.is_update:
             attrs = coal(self.validator.will_create(attrs), attrs)
