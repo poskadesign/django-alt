@@ -10,6 +10,7 @@ First let's create a simple model that will be managed as a REST resource:
 class Todo(models.Model):
     text = models.TextField()
     slug = models.SlugField()
+    author = models.ForeignKey(Account)
     date_created = models.DateTimeField(auto_now_add=True)
     
     @property
