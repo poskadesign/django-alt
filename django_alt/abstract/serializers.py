@@ -11,7 +11,8 @@ class BaseValidatedSerializer(serializers.Serializer):
     """
     Defines a relation between rest_framework serializer and validator
     """
-    FIELD_VALIDATION_PREFIX = 'check_'
+    FIELD_VALIDATOR_PREFIX = 'field_'
+    ATTRS_VALIDATOR_PREFIX = 'check_'
 
     def __init__(self, instance=None, data=empty, *, validator_class=None, **kwargs):
         if not hasattr(self, 'Meta'):
@@ -57,19 +58,27 @@ class BaseValidatedSerializer(serializers.Serializer):
         """
         return hasattr(self, 'instance') and self.instance is not None
 
-    def validate_fields(self, attrs: dict):
+    def validate_extras(self, attrs: dict):
         """
-        If subclass defines functions named validate_<field_name>
+        If subclass defines functions named field_<field_name>
         where field_name corresponds to a field declared on the
         serializer, executes such functions with the field's value
-        as a parameter.
+        as the parameter.
+        If subclass defines functions with names starting with check_,
+        executes such functions with attrs dict as the parameter.
+        All functions are called in alphabetical order
         :return: None
         """
-        fields = self.fields.fields.keys()
+        fields = sorted(self.fields.fields.keys())
         for field in fields:
-            name = self.FIELD_VALIDATION_PREFIX + field
+            name = self.FIELD_VALIDATOR_PREFIX + field
             if hasattr(self.validator, name) and callable(getattr(self.validator, name)) and field in attrs:
                 getattr(self.validator, name)(attrs[field])
+
+        def is_attr_action(name):
+            return name.startswith(self.ATTRS_VALIDATOR_PREFIX) and callable(getattr(self.validator, name))
+        for name in [name for name in dir(self.validator) if is_attr_action(name)]:
+            getattr(self.validator, name)(attrs)
 
     def validate(self, attrs: dict) -> dict:
         """
@@ -81,7 +90,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         attrs = coal(self.validator.clean(attrs), attrs)
         attrs = coal(self.validator.base(attrs), attrs)
 
-        self.validate_fields(attrs)
+        self.validate_extras(attrs)
 
         if not self.is_update:
             attrs = coal(self.validator.will_create(attrs), attrs)

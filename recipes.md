@@ -28,7 +28,7 @@ class TodoValidator(Validator):
         # generate a slug for the TODO
         attrs['slug'] = slugify(attrs['text'])
         
-    def check_text(self, text):
+    def field_text(self, text):
         # we only allow TODOs that are more then 5 characters long
         invalid_if(len(text) <= 5, 'text', 'The text is to short!')
     

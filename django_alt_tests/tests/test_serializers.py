@@ -150,8 +150,11 @@ class ValidatedModelSerializerTests(TestCase):
             def base(self, attrs: dict):
                 attrs['field_1'] = 'a' + attrs['field_1']
 
-            def check_field_1(self, value):
+            def field_field_1(self, value):
                 invalid_if('c' in value, 'field_1', 'Boom')
+
+            def check_something(self, attrs):
+                invalid_if('d' in attrs['field_1'], 'field_1', 'Boom')
 
             def will_create(self, attrs: dict):
                 invalid_if(self.model.objects.count(), '', '')
@@ -196,7 +199,7 @@ class ValidatedModelSerializerTests(TestCase):
 
     def test_validate_fields_positive(self):
         instance = ModelA.objects.create(field_1='otherstr', field_2=25)
-        with patch.object(self.ModelASerializer, 'validate_fields', return_value=None) as m1:
+        with patch.object(self.ModelASerializer, 'validate_extras', return_value=None) as m1:
             serializer = self.ModelASerializer(instance, data={'field_1': 'somestr', 'field_2': 15})
             serializer.is_valid(raise_exception=True)
             serializer.save()
@@ -206,6 +209,13 @@ class ValidatedModelSerializerTests(TestCase):
     def test_validate_fields_negative(self):
         instance = ModelA.objects.create(field_1='otherstr', field_2=25)
         serializer = self.ModelASerializer(instance, data={'field_1': 'somecstr', 'field_2': 15})
+        with self.assertRaises(serializers.ValidationError) as ex:
+            serializer.is_valid(raise_exception=True)
+        self.assertEqual(ex.exception.detail['field_1'][0], 'Boom.')
+
+    def test_validate_dependent_negative(self):
+        instance = ModelA.objects.create(field_1='otherstr', field_2=25)
+        serializer = self.ModelASerializer(instance, data={'field_1': 'somedstr', 'field_2': 15})
         with self.assertRaises(serializers.ValidationError) as ex:
             serializer.is_valid(raise_exception=True)
         self.assertEqual(ex.exception.detail['field_1'][0], 'Boom.')

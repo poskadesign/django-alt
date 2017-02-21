@@ -1,5 +1,17 @@
 #django-alt version changelog
 
+###0.50
+ - In addition to individual field validation, it is now possible to define
+ own methods on the `Validator` that are automatically called upon create/update.
+ The rules of custom function definition on `Validator` is as follows:
+   - `field_<field_name>` if defined, these functions are called for each serializer field.
+   These functions accept one parameter &ndash; `value` (the given field's value).
+   - `check_*` any defined function starting with `check_` is called automatically in an
+     alphabetical order after `base` validation. These functions accept one
+     parameter &ndash; `attrs` dict.
+   - It is also worthwhile to know that `check_*` functions **should not** mutate the
+   attrs object
+
 ###0.40
  - Option to validate individual fields. This allows even more separation
  of concerns. Now serializer calls `check_<field>` on the model validator for each
