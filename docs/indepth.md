@@ -45,6 +45,7 @@ def clean(self, attrs: dict) -> Union[dict, None]: pass
 Base clean method. Executed before base validation. Use this for
 - value cleaning (lowercasing, normalization, etc.);
 - setting or generating default dependent values (like slugs).
+
 ----------------------
 ##### Field validation
 ```python
@@ -52,6 +53,7 @@ def base(self, attrs: dict) -> Union[dict, None]: pass
 ```
 Executed before create and update methods. Use this for
 - raising validation errors independent from create or update.
+
 ----------------------
 ```python
 def base_db(self, attrs: dict) -> Union[dict, None]: pass
@@ -60,6 +62,7 @@ Executed as last step of validation. As DB access can be considered
 expensive, this will run last, provided any other steps check out. Use this for
 - validation that requires database access;
 - validation logic that is more time/resource consuming.
+
 ----------------------
 ##### Lifecycle hooks: `will_*`
 ```python
@@ -67,6 +70,7 @@ def will_create(self, attrs: dict) -> Union[dict, None]: pass
 ```
 Called when a new instance is created from `attrs`. Use this for
 - placing validation logic that should be executed solely on record creation.
+
 ----------------------
 ```python
 def will_update(self, instance, attrs: dict) -> Union[dict, None]: pass
@@ -75,6 +79,7 @@ Called when an existing instance is populated with new `attrs`.
 `instance` parameter &ndash; existing instance to be updated.
 Use this for
 - placing validation logic that should be solely executed on record update.
+
 ----------------------
 ```python
 def will_delete(self, queryset) -> None: pass
@@ -89,6 +94,7 @@ def did_create(self, instance, validated_attrs: dict) -> None: pass
 Called after a model instance is created. 
  - `instance` &ndash; the created model instance;
  - `validated_attrs` &ndash; validated attributes used to create the instance.
+ 
 ----------------------
 ```python
 def did_update(self, instance, validated_attrs: dict) -> None: pass
@@ -96,12 +102,14 @@ def did_update(self, instance, validated_attrs: dict) -> None: pass
 Called after a model instance is updated. 
  - `instance` &ndash; the updated model instance;
  - `validated_attrs` &ndash; validated attributes used to update the instance.
+ 
 ----------------------
 ```python
 def did_update(self, attrs: dict) -> None: pass
 ```
 Called after a model instance is deleted.
  - `attrs` &ndash; attributes passed from the request object;
+ 
 ----------------------
 ##### Presentation control
 ```python
@@ -116,6 +124,7 @@ of primitives by underlying DRF. Use this for
 - `validated_attrs` &ndash; a `dict` containing attributes that 
 were passed through validation functions;
 - *returns* modified repr_attrs OrderedDict.
+
 ----------------------
 ##### Wildcard checkers
 These are arbitrary functions that can be defined on the validator and
@@ -131,6 +140,7 @@ def field_<name>(self, value) -> None: pass
  only raise `ValidationError` in the case of invalid field value.  
  `field_` execution is done by the `validate_extras` function on 
  the serializer.
+ 
 ----------------------
 ```python
 def check_<what>(self, value) -> None: pass
