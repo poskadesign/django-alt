@@ -51,9 +51,20 @@ class TodoSerializer(ValidatedModelSerializer):
         fields = '__all__'
         validator_class = TodoValidator
 ```
+As we will see later, when used with an `Endpoint` this serializer will:
+ - instantiate the given `Validator` subclass;
+ - call it's methods appropriately.
 
 
-###1. Basic list and detail endpoints
+###1. Example: basic list and detail endpoints
+`Endpoint`s are a substitutes for Django views (or more specifically Django
+Rest Framework `APIView`s). To create them:
+ - create a class that subclasses `Endpoint`;
+ - add a `config` dictionary as a class attribute;
+ - specify HTTP methods that will work with your endpoint in `config`;
+ - add a serializer attribute that will be wired up to the pipeline.
+
+Here is an example:
 ```python
 # endpoints.py
 class TodoListEndpoint(Endpoint):
@@ -90,3 +101,5 @@ urlpatterns = [
     url(r'^/(?P<pk>[0-9]+)/$', TodoDetailEndpoint.as_view()),
 ]
 ```
+
+That's it! You now have a working API.

@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django_alt.utils.shortcuts import invalid
+from django_alt.utils.shortcuts import invalid, try_cast, coal_first
 
 base_view_class = APIView
 http_methods = ('get', 'post', 'patch', 'put', 'delete')
@@ -16,6 +16,7 @@ http_methods = ('get', 'post', 'patch', 'put', 'delete')
 KW_CONFIG_FILTERS = 'filters'
 KW_CONFIG_QUERYSET = 'query'
 KW_CONFIG_URL_FIELDS = 'fields_from_url'
+KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
 
 
 def _apply_filters(qs, filters, query_params):
@@ -32,6 +33,16 @@ def _apply_filters(qs, filters, query_params):
         invalid(current_param, str(e))
 
 
+def _normalize_url(**url):
+    def cast(value):
+        return coal_first(
+            try_cast(int, value),
+            try_cast(float, value),
+            value
+        )
+    return {k: cast(v) for k, v in url.items()}
+
+
 def _view_prototype(view_self, request, **url):
     method = request.method.lower()
     if method == 'head':
@@ -40,6 +51,9 @@ def _view_prototype(view_self, request, **url):
 
     try:
         config = endpoint.config[method]
+
+        if KW_CONFIG_URL_DONT_NORMALIZE not in config:
+            url = _normalize_url(**url)
 
         if KW_CONFIG_URL_FIELDS in config:
             try:
@@ -51,15 +65,18 @@ def _view_prototype(view_self, request, **url):
 
         qs = None
         pre_can, post_can = getattr(endpoint, 'can_' + method)()
-        if pre_can is not None and not pre_can(request, **url):
-            raise PermissionError()
+
+        # pre_can/post_can meaning
+        if pre_can is not None and pre_can is not True:
+            if pre_can is False or not pre_can(request, **url):
+                raise PermissionError()
 
         if KW_CONFIG_QUERYSET in config:
             qs = config[KW_CONFIG_QUERYSET](endpoint.model, **url)
             if KW_CONFIG_FILTERS in config and len(request.query_params):
                 qs = _apply_filters(qs, config[KW_CONFIG_FILTERS], request.query_params)
 
-        if post_can is not None:
+        if post_can is not None and post_can is not True:
             post_can = partial(post_can, request, qs)
         handler = getattr(endpoint, 'on_' + method)
         if method == 'post':
@@ -154,6 +171,10 @@ class MetaEndpoint(type):
                         assert hasattr(contents[KW_CONFIG_URL_FIELDS], '__iter__'), (
                             '`{0}` config field must be an iterable in endpoint `{1}`'
                         ).format(KW_CONFIG_URL_FIELDS, name)
+
+                    if KW_CONFIG_URL_DONT_NORMALIZE in contents:
+                        if KW_CONFIG_URL_DONT_NORMALIZE is not True:
+                            del contents[KW_CONFIG_URL_DONT_NORMALIZE]
 
         clsdict['config'] = config
 

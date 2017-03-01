@@ -64,11 +64,27 @@ def queryset_has_many(queryset) -> bool:
 def coal(obj, fallback):
     """
     Inspired by C# null-coalescing operator:
-    C# >>> not_null = obj ?? new Object()
-    Py >>> not_null = coal(obj, Object())
+    C# --> not_null = obj ?? new Object()
+    Py --> not_null = coal(obj, Object())
+    Also returns fallback upon a KeyError
     """
-    return obj if obj is not None else fallback
-	
+    try:
+        return obj if obj is not None else fallback
+    except KeyError:
+        return fallback
+
+
+def coal_first(*args):
+    """
+    Finds the first argument that is not None and doesn't throw a KeyError
+    :param args:
+    :return:
+    """
+    for arg in args:
+        if arg is not None:
+            return arg
+    return None
+
 
 def if_all_in(keys, container, func_true=None):
     """
@@ -101,3 +117,16 @@ def if_any_in(keys, container, func_true=None):
             container[key] = func_true(container[key])
             found_key = True
     return found_key
+
+
+def try_cast(typ, value):
+    """
+    Attempts to cast value to a given type.
+    :param typ: type to cast to
+    :param value: value to be casted
+    :return: casted value if cast was successful, otherwise None
+    """
+    try:
+        return typ(value)
+    except ValueError:
+        return None

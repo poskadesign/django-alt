@@ -7,6 +7,7 @@ class Validator:
     Abstract class that defines the basic lifecycle hooks and definition
     principles for its subclasses
     """
+    ATTR_CHECKS_PREFIX = 'check_'
 
     def __init__(self, *, model=None, serializer=None, **context):
         """
@@ -16,6 +17,18 @@ class Validator:
         self.model = model
         self.serializer = serializer
         self.context = context
+
+    def validate_checks(self, attrs):
+        """
+        If subclass defines functions with names starting with check_,
+        executes such functions with attrs dict as the parameter.
+        All functions are called in alphabetical order.
+        :param attrs: attrs dict to pass as parameter
+        """
+        def is_attr_action(name):
+            return name.startswith(self.ATTR_CHECKS_PREFIX) and callable(getattr(self, name))
+        for name in [name for name in dir(self) if is_attr_action(name)]:
+            getattr(self, name)(attrs)
 
     @abstractmethod
     def clean(self, attrs: dict) -> dict:
@@ -97,7 +110,7 @@ class Validator:
     @abstractmethod
     def did_update(self, instance, validated_attrs: dict) -> None:
         """
-        Called after a model instance is created
+        Called after a model instance is updated
         :param instance: the updated model instance
         :param validated_attrs: validated attrs used to update the instance
         :return: None
@@ -120,7 +133,7 @@ class Validator:
         Use this for
         - post-processing display values before converting them to JSON
         :param repr_attrs: an OrderedDict that is composed by DRF
-        :param validated_attrs: an dict containing attributes that were passed through validation functions
-        :return: modified attrs OrderedDict
+        :param validated_attrs: a dict containing attributes that were passed through validation functions
+        :return: modified repr_attrs OrderedDict
         """
         return repr_attrs

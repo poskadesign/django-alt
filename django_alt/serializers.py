@@ -7,8 +7,7 @@ class ValidatedModelSerializer(BaseValidatedSerializer, serializers.ModelSeriali
     def _instantiate_validator(self, **kwargs):
         assert hasattr(self.Meta, 'model'), (
             'Missing `model` field in serializer Meta class. '
-            'Offending serializer: {0}'
-        ).format(self.__class__.__name__)
+            'Offending serializer: {0}').format(self.__class__.__name__)
         return self.Meta.validator_class(model=self.Meta.model, serializer=self, **kwargs)
 
     def create(self, validated_data: dict):
@@ -20,3 +19,11 @@ class ValidatedModelSerializer(BaseValidatedSerializer, serializers.ModelSeriali
         instance = super().update(instance, validated_data)
         self.validator.did_update(instance, validated_data)
         return instance
+
+
+class ValidatedModelListSerializer(serializers.ListSerializer):
+    def create(self, validated_data: dict):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data: dict):
+        raise NotImplementedError()

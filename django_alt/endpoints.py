@@ -29,8 +29,8 @@ class Endpoint(metaclass=MetaEndpoint):
         :param url: (optional) view url kwargs
         :return: {response_to_serialize, status_code}
         """
-        if permission_test is not None and not permission_test(request.data):
-            raise PermissionError()
+        if permission_test:
+            cls.serializer._check_permissions(permission_test, request.data)
         return cls.serializer(queryset, many=queryset_has_many(queryset)).data, 200
 
     @classmethod
@@ -45,7 +45,9 @@ class Endpoint(metaclass=MetaEndpoint):
         :return: {response_to_serialize, status_code}
         """
         is_many = isinstance(request.data, list)
-        serializer = cls.serializer(data=request.data, permission_test=permission_test, many=is_many)
+        serializer = cls.serializer(data=request.data,
+                                    permission_test=permission_test,
+                                    many=is_many)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return serializer.data, 201
@@ -66,7 +68,8 @@ class Endpoint(metaclass=MetaEndpoint):
             raise Http404
         if queryset_has_many(queryset):
             raise NotImplementedError()
-        serializer = cls.serializer(queryset, data=request.data,
+        serializer = cls.serializer(queryset,
+                                    data=request.data,
                                     many=queryset_has_many(queryset),
                                     partial=True,
                                     permission_test=permission_test)
@@ -76,6 +79,14 @@ class Endpoint(metaclass=MetaEndpoint):
 
     @classmethod
     def on_put(cls, request, queryset, permission_test=None, **url) -> (dict, int):
+        """
+        TBD
+        :param request:
+        :param queryset:
+        :param permission_test:
+        :param url:
+        :return:
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -94,8 +105,7 @@ class Endpoint(metaclass=MetaEndpoint):
             raise Http404
         validator = cls.serializer.Meta.validator_class(model=cls.model)
         validator.will_delete(queryset)
-        if permission_test and not permission_test(request.data):
-            raise PermissionError()
+        cls.serializer._check_permissions(permission_test, request.data)
         data = cls.serializer(queryset, many=queryset_has_many(queryset)).data
         queryset.delete()
         return data, 200
@@ -110,7 +120,11 @@ class Endpoint(metaclass=MetaEndpoint):
         Defines a pair of optional permission checker functions (pre_validation_func, post_validation_func).
         First is called initially before any validation.
         Second is called after validation finishes.
-        The methods return type `bool` and their calling signatures are as defined below.
+        They return a `bool` value and their calling signatures are as defined below.
+        Alternatively these values can be used instead of callables:
+            True  -> permission always granted,
+            False -> permission never granted,
+            None  -> no permission needed (True <=> None, the distinction is only semantic)
         :return: (pre_validation_func=None, post_validation_func=None)
         """
         return (

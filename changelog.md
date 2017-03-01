@@ -1,5 +1,25 @@
 #django-alt version changelog
 
+###0.60
+ - Improved documentation (`readme.md`, `recipes.md`), added `indepth.md`.
+ - Introduced wildcard validators: ability to defined arbitrary functions
+ to validate individual fields or all attributes collectively. More information
+ on this in `indepth.md`.
+ - Introduced automatic query parameter casting (e.g. where possible `"1"` -> `1`, 
+ `"true"` -> `True`, etc.). This feature can be turned off by adding
+ `no_url_param_casting` in the config dict on the endpoint.
+ - Broadened `pre_permission` and `post_permission` definition to include
+ absolute values instead of callables:
+    - `True`  -> permission always granted,
+    - `False` -> permission never granted,
+    - `None`  -> no permission needed (`True` <=> `None`, the distinction is only semantic).
+ - Added `ValidatedModelListSerializer`.
+ - Added `coal_first` shortcut function. It finds the first argument 
+ that is not `None` and doesn't raise a `KeyError`.
+ - Added `compose_and` shortcut. It composes an iterable of callables 
+ with identical signatures and asserts universal quantification for their results.
+ - Added `pre_logged_in` permission shortcut.
+
 ###0.50
  - In addition to individual field validation, it is now possible to define
  own methods on the `Validator` that are automatically called upon create/update.
