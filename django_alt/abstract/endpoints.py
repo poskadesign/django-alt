@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django_alt.utils.shortcuts import invalid, try_cast, coal_first
+from django_alt.utils.shortcuts import invalid, try_cast, first_defined
 
 base_view_class = APIView
 http_methods = ('get', 'post', 'patch', 'put', 'delete')
@@ -35,7 +35,7 @@ def _apply_filters(qs, filters, query_params):
 
 def _normalize_url(**url):
     def cast(value):
-        return coal_first(
+        return first_defined(
             try_cast(int, value),
             try_cast(float, value),
             value
