@@ -4,3 +4,4 @@ env
 django_alt.egg-info
 .idea
 db.sqlite3
+*.psd

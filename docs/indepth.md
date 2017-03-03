@@ -34,11 +34,16 @@ Basic principle:
  
 `Validator` subclasses take care of this. If used with a 
 `ValidatedModelSerializer`, the serializer automatically 
-handles the execution of its functions. These are the functions that
- can (should) be subclassed.
+handles the execution of its functions. Below is a diagram 
+showing the function meaning and call sequence.
+ 
+![sequence]
+
+Signatures of functions shown in the sequence and their usage is
+detailed below:
 
 ----------------------
-##### Field cleaning 
+##### Sanitization 
 ```python
 def clean(self, attrs: dict) -> Union[dict, None]: pass
 ```
@@ -47,7 +52,7 @@ Base clean method. Executed before base validation. Use this for
 - setting or generating default dependent values (like slugs).
 
 ----------------------
-##### Field validation
+##### Validation
 ```python
 def base(self, attrs: dict) -> Union[dict, None]: pass
 ```
@@ -111,6 +116,46 @@ Called after a model instance is deleted.
  - `attrs` &ndash; attributes passed from the request object;
  
 ----------------------
+##### Wildcard checkers
+These are arbitrary functions that can be defined on the validator and
+are automatically called by the serializer on occasions.
+
+----------------------
+```python
+def clean_<name>(self, value): pass
+```
+ If subclass defines functions named `clean_<name>` where 
+ `name` corresponds to a field declared on the serializer, 
+ executes such functions with the field's value as the parameter. 
+ The return value is then set on the `attrs` dictionary at key `name`.    
+ `clean_` execution is triggered by the `clean_fields` function on 
+ the validator.
+ 
+----------------------
+```python
+def field_<name>(self, value) -> None: pass
+```
+ If subclass defines functions named `field_<name>` where 
+ `name` corresponds to a field declared on the serializer, 
+ executes such functions with the field's value as the parameter. 
+ The function **should not** mutate anything &ndash; 
+ only raise `ValidationError` in the case of invalid field value.  
+ `field_` execution is triggered by the `validate_fields` function on 
+ the validator.
+ 
+----------------------
+```python
+def check_<what>(self, value) -> None: pass
+```
+ If subclass defines functions with names starting with `check_`,
+ executes such functions with attrs dict as the parameter.
+ All functions are called in alphabetical order.
+ Again, the function **should not** mutate anything. It is used to
+ fields that are dependent on one another.   
+ `check_` execution is triggered by the `validate_checks` function on 
+ the validator.
+ 
+----------------------
 ##### Presentation control
 ```python
 def to_representation(self, repr_attrs: OrderedDict, validated_attrs: dict = None) -> OrderedDict: pass
@@ -125,33 +170,6 @@ of primitives by underlying DRF. Use this for
 were passed through validation functions;
 - *returns* modified repr_attrs OrderedDict.
 
-----------------------
-##### Wildcard checkers
-These are arbitrary functions that can be defined on the validator and
-are automatically called by the serializer on occasions.
-
-```python
-def field_<name>(self, value) -> None: pass
-```
- If subclass defines functions named `field_<name>` where 
- `name` corresponds to a field declared on the serializer, 
- executes such functions with the field's value as the parameter. 
- The function **should not** mutate anything &ndash; 
- only raise `ValidationError` in the case of invalid field value.  
- `field_` execution is done by the `validate_extras` function on 
- the serializer.
- 
-----------------------
-```python
-def check_<what>(self, value) -> None: pass
-```
- If subclass defines functions with names starting with `check_`,
- executes such functions with attrs dict as the parameter.
- All functions are called in alphabetical order.
- Again, the function **should not** mutate anything. It is used to
- fields that are dependent on one another.   
- `check_` execution is done by the `validate_checks` function on 
- the validator.
-
 
 [package]: package-composition.png "django-alt composition"
+[sequence]: validation-sequence.png "Validator execution sequence"

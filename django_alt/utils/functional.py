@@ -1,4 +1,4 @@
-def compose_and(*functions) -> bool:
+def compose_and(*functions):
     """
     Composes an iterable of callables with identical signatures
     and asserts universal quantification for their results.
