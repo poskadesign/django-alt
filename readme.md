@@ -4,6 +4,7 @@ django-alt is an alternative approach to data validation and
 REST endpoint definition in Django and DRF.
 
 Latest version is **0.61**.
+
 ###Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
 ```
@@ -18,12 +19,13 @@ pip install django-alt
 - Cumbersome lifecycle hooks (e.g. code to execute upon object creation).
 - Allow more declarative expressions while making it easy to *spice* them up.
 
-This package aims to help solving these problems.
-
-###Example: Todo list
-Be sure to also 
+This package aims to help solving these problems. Be sure to also 
 checkout [`recipes.md`](https://github.com/poskadesign/django-alt/blob/master/recipes.md) 
-for more examples and info.
+for quick&ndash;starting and more examples
+or [`indepth.md`](https://github.com/poskadesign/django-alt/blob/master/docs/indepth.md)
+for a *deeper dive*.
+
+###Example: Todo list 
 #####endpoints.py
 ```python
 class TodoEndpoint(Endpoint):
@@ -80,3 +82,12 @@ class TodoSpecialEndpoint(Endpoint):
         post_permission = lambda request, queryset, attrs: not attrs.get('confirmed', False)
         return (pre_permission, post_permission)
 ```
+
+### Notes
+While on the **0.x** track, this project is subject to rapid
+development and some changes might break reverse&ndash;compatibility.
+Any contribution or ideas are welcome!
+
+### Author & License
+Vilius Poška.  
+This project is freely licensed under the MIT license.  
