@@ -9,6 +9,9 @@ class Validator:
     """
     ATTR_CHECKS_PREFIX = 'check_'
 
+    FIELD_CLEAN_PREFIX = 'clean_'
+    FIELD_VALIDATOR_PREFIX = 'field_'
+
     def __init__(self, *, model=None, serializer=None, **context):
         """
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
@@ -29,6 +32,36 @@ class Validator:
             return name.startswith(self.ATTR_CHECKS_PREFIX) and callable(getattr(self, name))
         for name in [name for name in dir(self) if is_attr_action(name)]:
             getattr(self, name)(attrs)
+
+    def validate_fields(self, attrs, field_names):
+        """
+        If subclass defines functions named field_<field_name>
+        where field_name corresponds to a field declared on the
+        serializer, executes such functions with the field's value
+        as the parameter.
+        :param attrs: attrs to check
+        :param field_names: an iterable of fields defined by name
+        :return: None
+        """
+        for field in sorted(field_names):
+            name = ''.join((self.FIELD_VALIDATOR_PREFIX, field))
+            if hasattr(self, name) and callable(getattr(self, name)) and field in attrs:
+                getattr(self, name)(attrs[field])
+
+    def clean_fields(self, attrs, field_names):
+        """
+        If subclass defines functions named clean_<field_name>
+        where field_name corresponds to a field declared on the
+        serializer, executes such functions with the field's value
+        as the parameter and sets the return value on the attrs dict
+        :param attrs: dict to apply the cleaned values on
+        :param field_names: an iterable of fields defined by name
+        :return: cleaned value
+        """
+        for field in sorted(field_names):
+            name = ''.join((self.FIELD_CLEAN_PREFIX, field))
+            if hasattr(self, name) and callable(getattr(self, name)) and field in attrs:
+                attrs[field] = getattr(self, name)(attrs[field])
 
     @abstractmethod
     def clean(self, attrs: dict) -> dict:

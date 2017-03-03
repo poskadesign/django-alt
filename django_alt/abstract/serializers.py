@@ -13,7 +13,6 @@ class BaseValidatedSerializer(serializers.Serializer):
     """
     Defines a relation between rest_framework serializer and validator
     """
-    FIELD_VALIDATOR_PREFIX = 'field_'
 
     def __init__(self, instance=None, data=empty, *, validator_class=None, **kwargs):
         if not hasattr(self, 'Meta'):
@@ -32,13 +31,6 @@ class BaseValidatedSerializer(serializers.Serializer):
 
         self.Meta.validator_instance = self._instantiate_validator(**kwargs)
         super().__init__(instance, data, **kwargs)
-
-    def _instantiate_validator(self, **kwargs):
-        """
-        Annotate the serializer with an instantiated model validator class
-        :return: None
-        """
-        return self.Meta.validator_class(serializer=self, **kwargs)
 
     @staticmethod
     def _check_permissions(permission_test, attrs):
@@ -68,25 +60,6 @@ class BaseValidatedSerializer(serializers.Serializer):
         """
         return hasattr(self, 'instance') and self.instance is not None
 
-    def validate_extras(self, attrs: dict):
-        """
-        If subclass defines functions named field_<field_name>
-        where field_name corresponds to a field declared on the
-        serializer, executes such functions with the field's value
-        as the parameter.
-        If subclass defines functions with names starting with check_,
-        executes such functions with attrs dict as the parameter.
-        All functions are called in alphabetical order.
-        :return: None
-        """
-        fields = sorted(self.fields.fields.keys())
-        for field in fields:
-            name = self.FIELD_VALIDATOR_PREFIX + field
-            if hasattr(self.validator, name) and callable(getattr(self.validator, name)) and field in attrs:
-                getattr(self.validator, name)(attrs[field])
-
-        self.validator.validate_checks(attrs)
-
     def check_permissions(self, attrs):
         """
         Performs post-permission checking, if a `permission_test` callable
@@ -103,10 +76,15 @@ class BaseValidatedSerializer(serializers.Serializer):
         :param attrs: a dictionary containing input attributes to validate
         :return: transformed (if necessary) attributes from input
         """
+        fields = self.fields.fields.keys()
+
+        self.validator.clean_fields(attrs, fields)
+
         attrs = coal(self.validator.clean(attrs), attrs)
         attrs = coal(self.validator.base(attrs), attrs)
 
-        self.validate_extras(attrs)
+        self.validator.validate_fields(attrs, fields)
+        self.validator.validate_checks(attrs)
 
         if not self.is_update:
             attrs = coal(self.validator.will_create(attrs), attrs)
@@ -124,3 +102,10 @@ class BaseValidatedSerializer(serializers.Serializer):
         result = self.validator.to_representation(representation,
                                                   self.validated_data if hasattr(self, '_validated_data') else None)
         return result if result else representation
+
+    def _instantiate_validator(self, **kwargs):
+        """
+        Annotate the serializer with an instantiated model validator class
+        :return: None
+        """
+        return self.Meta.validator_class(serializer=self, **kwargs)

@@ -1,5 +1,14 @@
 #django-alt version changelog
 
+###0.61
+ - Introduced `ValidatedManager` that allows validate data before 
+ creating a new model instance.
+ - Introduced wildcard cleaners: similarly to wildcard field validators, cleaners are
+ are `clean_<field_name>` functions that are expected to return a cleaned value
+ for the field. The return value is then set on the `attrs` `dict`.
+ - Shortcut `coal_first` renamed to a more memorable `first_defined`.
+ - Improved test coverage.
+
 ###0.60
  - Improved documentation (`readme.md`, `recipes.md`), added `indepth.md`.
  - Introduced wildcard validators: ability to defined arbitrary functions

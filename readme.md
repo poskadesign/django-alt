@@ -3,7 +3,7 @@
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
-Latest version is **0.60**.
+Latest version is **0.61**.
 ###Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
 ```
@@ -39,6 +39,9 @@ class TodoEndpoint(Endpoint):
 class TodoValidator(Validator):
     def clean(self, attrs):
         attrs['slug'] = slugify(attrs['name'])
+        
+    def clean_author(self, author):
+        return author.capitalize()
         
     def field_author(self, author):
         invalid_if(not author.is_active, 'author', 'Sorry, you cannot post')

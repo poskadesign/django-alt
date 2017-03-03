@@ -34,21 +34,21 @@ def make_error(key_or_list, error_or_list) -> dict:
     return {'non_field_errors': err}
 
 
-def if_in(key, container, func_true=None, func_false=None):
+def if_in(key, container, func_true=None, default=None):
     """
     Checks if given key on the container exists and executes.
     func_true or func_false with each corresponding value based on the outcome.
     :param key: the key to search
     :param container: the container to search in
     :param func_true: callable that is called on success: func_true(container[key])
-    :param func_false: callable that is called on fail: func_false(container[key])
+    :param default: default value to set if key does not exist in the container
     :return: {bool} whether the key exists
     """
     if key in container and func_true is not None:
         container[key] = func_true(container[key])
         return True
-    elif func_false is not None:
-        container[key] = func_false()
+    elif default is not None:
+        container[key] = default
         return False
 
 
@@ -72,18 +72,6 @@ def coal(obj, fallback):
         return obj if obj is not None else fallback
     except KeyError:
         return fallback
-
-
-def coal_first(*args):
-    """
-    Finds the first argument that is not None and doesn't throw a KeyError
-    :param args:
-    :return:
-    """
-    for arg in args:
-        if arg is not None:
-            return arg
-    return None
 
 
 def if_all_in(keys, container, func_true=None):
@@ -117,6 +105,18 @@ def if_any_in(keys, container, func_true=None):
             container[key] = func_true(container[key])
             found_key = True
     return found_key
+
+
+def first_defined(*args):
+    """
+    Finds the first argument that is not None
+    :param args: arguments to check for "defineness"
+    :return:
+    """
+    for arg in args:
+        if arg is not None:
+            return arg
+    return None
 
 
 def try_cast(typ, value):

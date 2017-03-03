@@ -147,6 +147,9 @@ class ValidatedModelSerializerTests(TestCase):
             def clean(self, attrs: dict):
                 attrs['field_1'] = 'a' + attrs['field_1']
 
+            def clean_field_1(self, field_1):
+                return 'works' if field_1.startswith('z') else field_1
+
             def base(self, attrs: dict):
                 attrs['field_1'] = 'a' + attrs['field_1']
 
@@ -197,15 +200,6 @@ class ValidatedModelSerializerTests(TestCase):
         self.assertEqual(ModelA.objects.first().field_1, 'aasomestr')
         self.assertEqual(ModelA.objects.first().field_2, 15)
 
-    def test_validate_fields_positive(self):
-        instance = ModelA.objects.create(field_1='otherstr', field_2=25)
-        with patch.object(self.ModelASerializer, 'validate_extras', return_value=None) as m1:
-            serializer = self.ModelASerializer(instance, data={'field_1': 'somestr', 'field_2': 15})
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-
-        self.assertTrue(m1.called)
-
     def test_validate_fields_negative(self):
         instance = ModelA.objects.create(field_1='otherstr', field_2=25)
         serializer = self.ModelASerializer(instance, data={'field_1': 'somecstr', 'field_2': 15})
@@ -213,9 +207,16 @@ class ValidatedModelSerializerTests(TestCase):
             serializer.is_valid(raise_exception=True)
         self.assertEqual(ex.exception.detail['field_1'][0], 'Boom.')
 
-    def test_validate_dependent_negative(self):
+    def test_check_negative(self):
         instance = ModelA.objects.create(field_1='otherstr', field_2=25)
         serializer = self.ModelASerializer(instance, data={'field_1': 'somedstr', 'field_2': 15})
         with self.assertRaises(serializers.ValidationError) as ex:
             serializer.is_valid(raise_exception=True)
         self.assertEqual(ex.exception.detail['field_1'][0], 'Boom.')
+
+    def test_clean_fields_negative(self):
+        instance = ModelA.objects.create(field_1='otherstr', field_2=25)
+        serializer = self.ModelASerializer(instance, data={'field_1': 'zzz', 'field_2': 15})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        self.assertEqual(ModelA.objects.first().field_1, 'aaworks')
