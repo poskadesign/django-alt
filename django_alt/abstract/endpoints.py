@@ -58,7 +58,7 @@ def _view_prototype(view_self, request, **url):
         if KW_CONFIG_URL_FIELDS in config:
             try:
                 request.data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
-            except KeyError as e:
+            except KeyError:
                 raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
                                       '`{0}` dump: {2}').format(KW_CONFIG_URL_FIELDS, view_self.endpoint_class.__name__,
                                                                 json.dumps(config[KW_CONFIG_URL_FIELDS])))
@@ -77,7 +77,7 @@ def _view_prototype(view_self, request, **url):
                 qs = _apply_filters(qs, config[KW_CONFIG_FILTERS], request.query_params)
 
         if post_can is not None and post_can is not True:
-            post_can = partial(post_can, request, qs)
+            post_can = partial(post_can, request, url, qs)
         handler = getattr(endpoint, 'on_' + method)
         if method == 'post':
             return Response(*handler(request, post_can, **url))
@@ -92,8 +92,11 @@ def _view_prototype(view_self, request, **url):
     except Http404:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    except (ObjectDoesNotExist, DjangoValidationError) as e:
-        return Response(' '.join(e.args), status=status.HTTP_400_BAD_REQUEST)
+    except ObjectDoesNotExist as e:
+        return Response(' '.join(e.args), status=status.HTTP_404_NOT_FOUND)
+
+    except DjangoValidationError as e:
+        return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MetaEndpoint(type):

@@ -76,7 +76,7 @@ class ModelAEndpoint5(Endpoint):
 
     @classmethod
     def can_get(cls):
-        return None, lambda request, qs, attrs: False
+        return None, lambda request, url, qs, attrs: False
 
 
 class ModelAEndpoint6(Endpoint):

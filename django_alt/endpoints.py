@@ -36,7 +36,8 @@ class Endpoint(metaclass=MetaEndpoint):
     @classmethod
     def on_post(cls, request, permission_test=None, **url) -> (dict, int):
         """
-        Default POST handler implementation
+        Default POST handler implementation.
+        Used to create a new resource.
         Must return a tuple containing the response that is fed to the serializer and a status code.
         Safe to raise Validation, Permission and HTTP errors
         :param request: view request object
@@ -47,7 +48,8 @@ class Endpoint(metaclass=MetaEndpoint):
         is_many = isinstance(request.data, list)
         serializer = cls.serializer(data=request.data,
                                     permission_test=permission_test,
-                                    many=is_many)
+                                    many=is_many,
+                                    request=request)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return serializer.data, 201
@@ -55,13 +57,14 @@ class Endpoint(metaclass=MetaEndpoint):
     @classmethod
     def on_patch(cls, request, queryset, permission_test=None, **url) -> (dict, int):
         """
-        Default PATCH handler implementation
+        Default PATCH handler implementation.
+        Used to update an existing resource partially or fully.
         Must return a tuple containing the response that is fed to the serializer and a status code.
         Safe to raise Validation, Permission and HTTP errors
         :param request: view request object
         :param queryset: queryset from the endpoint config
-        :param [permission_test]: permission test to execute after full validation
-        :param [url]: view url kwargs
+        :param permission_test: permission test to execute after full validation
+        :param url: view url kwargs
         :return: {response_to_serialize, status_code}
         """
         if queryset is None:
@@ -72,7 +75,8 @@ class Endpoint(metaclass=MetaEndpoint):
                                     data=request.data,
                                     many=queryset_has_many(queryset),
                                     partial=True,
-                                    permission_test=permission_test)
+                                    permission_test=permission_test,
+                                    request=request)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return serializer.data, 200
@@ -80,19 +84,42 @@ class Endpoint(metaclass=MetaEndpoint):
     @classmethod
     def on_put(cls, request, queryset, permission_test=None, **url) -> (dict, int):
         """
-        TBD
-        :param request:
-        :param queryset:
-        :param permission_test:
-        :param url:
-        :return:
+        Default PUT handler implementation.
+        Used to update an existing resource if it is defined and create a new one otherwise.
+        Must return a tuple containing the response that is fed to the serializer and a status code.
+        Safe to raise Validation, Permission and HTTP errors
+        :param request: view request object
+        :param queryset: queryset from the endpoint config
+        :param permission_test: permission test to execute after full validation
+        :param url: view url kwargs
+        :return: {response_to_serialize, status_code}
         """
-        raise NotImplementedError()
+        if queryset is None:
+            serializer = cls.serializer(data=request.data,
+                                        many=queryset_has_many(queryset),
+                                        permission_test=permission_test,
+                                        request=request)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return serializer.data, 201
+
+        if queryset_has_many(queryset):
+            raise NotImplementedError()
+        serializer = cls.serializer(queryset,
+                                    data=request.data,
+                                    partial=True,
+                                    many=queryset_has_many(queryset),
+                                    permission_test=permission_test,
+                                    request=request)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return serializer.data, 200
 
     @classmethod
     def on_delete(cls, request, queryset, permission_test=None, **url) -> (dict, int):
         """
-        Default DELETE handler implementation
+        Default DELETE handler implementation.
+        Used to delete an existing resource.
         Must return a tuple containing the response that is fed to the serializer and a status code.
         Safe to raise Validation, Permission and HTTP errors
         :param request: view request object
@@ -129,7 +156,7 @@ class Endpoint(metaclass=MetaEndpoint):
         """
         return (
             lambda request, **url: True,
-            lambda request, queryset, attrs: True
+            lambda request, url, queryset, attrs: True
         )
 
     @classmethod

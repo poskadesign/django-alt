@@ -14,7 +14,8 @@ class BaseValidatedSerializer(serializers.Serializer):
     Defines a relation between rest_framework serializer and validator
     """
 
-    def __init__(self, instance=None, data=empty, *, validator_class=None, **kwargs):
+    def __init__(self, instance=None, data=empty, *,
+                 validator_class=None, request=None, permission_test=None, **kwargs):
         if not hasattr(self, 'Meta'):
             self.Meta = type('Meta', tuple(), dict())
         if validator_class:
@@ -26,10 +27,10 @@ class BaseValidatedSerializer(serializers.Serializer):
             'Offending serializer: {0}'
         ).format(self.__class__.__qualname__)
 
-        self.permission_test = kwargs.pop('permission_test', None)
+        self.permission_test = permission_test
         self.did_check_permission = False
 
-        self.Meta.validator_instance = self._instantiate_validator(**kwargs)
+        self.Meta.validator_instance = self._instantiate_validator(request=request, **kwargs)
         super().__init__(instance, data, **kwargs)
 
     @staticmethod

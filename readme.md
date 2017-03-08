@@ -20,7 +20,7 @@ pip install django-alt
 - Allow more declarative expressions while making it easy to *spice* them up.
 
 This package aims to help solving these problems. Be sure to also 
-checkout [`recipes.md`](https://github.com/poskadesign/django-alt/blob/master/recipes.md) 
+checkout [`recipes.md`](https://github.com/poskadesign/django-alt/blob/master/docs/recipes.md) 
 for quick&ndash;starting and more examples
 or [`indepth.md`](https://github.com/poskadesign/django-alt/blob/master/docs/indepth.md)
 for a *deeper dive*.
