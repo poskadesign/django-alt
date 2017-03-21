@@ -1,6 +1,6 @@
-#django-alt version changelog
+# django-alt version changelog
 
-###0.61
+### 0.61
  - Introduced `ValidatedManager` that allows validate data before 
  creating a new model instance.
  - Introduced wildcard cleaners: similarly to wildcard field validators, cleaners are
@@ -9,7 +9,7 @@
  - Shortcut `coal_first` renamed to a more memorable `first_defined`.
  - Improved test coverage.
 
-###0.60
+### 0.60
  - Improved documentation (`readme.md`, `recipes.md`), added `indepth.md`.
  - Introduced wildcard validators: ability to defined arbitrary functions
  to validate individual fields or all attributes collectively. More information
@@ -29,7 +29,7 @@
  with identical signatures and asserts universal quantification for their results.
  - Added `pre_logged_in` permission shortcut.
 
-###0.50
+### 0.50
  - In addition to individual field validation, it is now possible to define
  own methods on the `Validator` that are automatically called upon create/update.
  The rules of custom function definition on `Validator` is as follows:
@@ -41,14 +41,14 @@
   - It is also worthwhile to know that `check_*` functions **should not** mutate the
    attrs object
 
-###0.40
+### 0.40
  - Option to validate individual fields. This allows even more separation
  of concerns. Now serializer calls `check_<field>` on the model validator for each
  `<field>` defined on the serializer (only if its value was in `attrs`).
  This validation happens *after* `base` validation is completed. Note that at this stage
  the `attrs` dict is **not** mutated.
 
-###0.30
+### 0.30
  - Added `fields_from_url` parameter to endpoint `config`. Until now  
  serializer fields were only specified in request body. This allows a structured and
   straightforward way to retrieve their values from URL parameters.
@@ -56,24 +56,24 @@
  code excerpts.
  useful for quick scenario look-up (think *cheat&ndash;sheet*).
 
-###0.24
+### 0.24
  - Added shortcuts `if_all_in` and `if_any_in`.
 
-###0.23
+### 0.23
  - Added `coal` null-coalescing shortcut.
  - Updated `validate` attrs replacement behaviour.
  
-###0.22
+### 0.22
  - Added `serializer` back-reference to abstract validator.
  - Updated `validate` method to replace `attrs` reference, if a new object is returned from validator methods.
  - Fixed appending dot after an exclamation mark in `make_error` function.
  
-###0.21
+### 0.21
 - `tests` folder renamed to `django_alt_tests` to avoid clashes. 
 
-###0.2
+### 0.2
 - Full implementation of `Endpoint`, `Validator` and `ValidatedSerializer` interfaces.
 - Initial test coverage for project.
 
-###0.1
+### 0.1
  - Initial version containing the basic file structure.
