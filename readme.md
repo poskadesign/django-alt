@@ -1,17 +1,17 @@
-#django-alt
+# django-alt
 
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
 Latest version is **0.61**.
 
-###Installation
+### Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
 ```
 pip install django-alt
 ```
 
-###Motives
+### Motives
 - No standardized way to separate *domain* and *data* logic.
 - No standardized way to validate serialized data.
 - Standard validation techniques do not offer any mechanisms for *separation of concerns*. 
@@ -25,8 +25,8 @@ for quick&ndash;starting and more examples
 or [`indepth.md`](https://github.com/poskadesign/django-alt/blob/master/docs/indepth.md)
 for a *deeper dive*.
 
-###Example: Todo list 
-#####endpoints.py
+### Example: Todo list 
+##### endpoints.py
 ```python
 class TodoEndpoint(Endpoint):
     serializer = TodoSerializer
@@ -36,7 +36,7 @@ class TodoEndpoint(Endpoint):
         }
     }
 ```
-#####validators.py
+##### validators.py
 ```python
 class TodoValidator(Validator):
     def clean(self, attrs):
@@ -52,7 +52,7 @@ class TodoValidator(Validator):
         inform_subscribers(instance)
 ```
 
-#####serializers.py
+##### serializers.py
 ```python
 class TodoSerializer(ValidatedModelSerializer):
     class Meta:
@@ -61,8 +61,8 @@ class TodoSerializer(ValidatedModelSerializer):
         validator_class = TodoValidator
 ```
 
-###Example: endpoint customization
-#####endpoints.py
+### Example: endpoint customization
+##### endpoints.py
 ```python
 class TodoSpecialEndpoint(Endpoint):
     serializer = TodoSerializer
