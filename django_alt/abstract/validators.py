@@ -151,10 +151,9 @@ class Validator:
         pass
 
     @abstractmethod
-    def did_delete(self, attrs: dict) -> None:
+    def did_delete(self) -> None:
         """
         Called after a model instance is deleted
-        :param attrs: dict of data passed from the request object
         :return: None
         """
         pass
