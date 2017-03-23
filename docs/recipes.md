@@ -1,9 +1,9 @@
-#django-alt recipes
+# django-alt recipes
 
 This document aims to provide a brief overview of functionality provided by
 django-alt.
 
-###0. Preparation
+### 0. Preparation
 First let's create a simple model that will be managed as a REST resource:
 ```python
 # models.py
@@ -56,7 +56,7 @@ As we will see later, when used with an `Endpoint` this serializer will:
  - call it's methods appropriately.
 
 
-###1. Example: basic list and detail endpoints
+### 1. Example: basic list and detail endpoints
 `Endpoint`s are a substitutes for Django views (or more specifically Django
 Rest Framework `APIView`s). To create them:
  - create a class that subclasses `Endpoint`;

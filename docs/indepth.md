@@ -1,7 +1,7 @@
-#django-alt in depth
+# django-alt in depth
 
 A more involved reference of the package.
-###Structure
+### Structure
 
 ![package]
 
@@ -21,7 +21,7 @@ The figure above describes the three usual methods of using this package.
  be trivial to customize and plug-in/out.
  
 
-###Validator
+### Validator
 ```python
 class Validator:
     def __init__(self, *, model=None, serializer=None, **context): pass
