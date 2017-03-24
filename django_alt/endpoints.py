@@ -148,6 +148,7 @@ class Endpoint(metaclass=MetaEndpoint):
         cls.serializer._check_permissions(permission_test, request.data)
         data = cls.serializer(queryset, many=queryset_has_many(queryset)).data
         queryset.delete()
+        validator.did_delete()
         return data, 200
 
     """
