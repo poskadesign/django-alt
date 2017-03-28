@@ -1,3 +1,4 @@
+from django.core.exceptions import ImproperlyConfigured
 from django.http import Http404
 
 from django_alt.abstract.endpoints import MetaEndpoint
@@ -5,12 +6,23 @@ from django_alt.utils.shortcuts import queryset_has_many
 
 
 class Endpoint(metaclass=MetaEndpoint):
+    config = dict()
+    model = None
+    serializer = None
+    view = None
+
     @classmethod
     def as_view(cls, **kwargs):
         """
         Main entry point for a request-response process.
         Allows to use handler.as_view() directly in urlpatterns.
         """
+        if not len(cls.config):
+            raise ImproperlyConfigured((
+                'You are trying to call `as_view` on an endpoint with an empty config.\n'
+                'Did you forget to specify the `config` attribute?\n'
+                'Offending endpoint: `{0}`'
+            ).format(cls.__name__))
         return cls.view.as_view(**kwargs)
 
     """
