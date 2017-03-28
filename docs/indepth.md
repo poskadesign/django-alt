@@ -151,7 +151,7 @@ def check_<what>(self, value) -> None: pass
  executes such functions with attrs dict as the parameter.
  All functions are called in alphabetical order.
  Again, the function **should not** mutate anything. It is used to
- fields that are dependent on one another.   
+ validate fields that are dependent on one another.   
  `check_` execution is triggered by the `validate_checks` function on 
  the validator.
  
