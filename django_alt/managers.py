@@ -8,8 +8,9 @@ class ValidatedManager:
     without needing a serializer
     """
 
-    def __init__(self, model, validator_class: Validator, **context):
+    def __init__(self, model, validator_class: Validator, no_save=False, **context):
         self.model = model
+        self.no_save = no_save
         self.validator = validator_class(model=model, serializer=None, **context)
 
     def validation_sequence(self, attrs: dict):
@@ -32,10 +33,12 @@ class ValidatedManager:
         """
         self.validation_sequence(attrs)
 
-        instance = self.model.objects.create(**attrs)
-        self.validator.did_create(instance, attrs)
+        if not self.no_save:
+            instance = self.model.objects.create(**attrs)
+            self.validator.did_create(instance, attrs)
+            return instance
 
-        return instance
+        return attrs
 
     def create_many(self, list_of_attrs):
         """
@@ -44,6 +47,7 @@ class ValidatedManager:
         :return:
         """
         instances = []
+        list_of_attrs = list(list_of_attrs)
         for attrs in list_of_attrs:
             self.validation_sequence(attrs)
             instances.append(self.model(**attrs))

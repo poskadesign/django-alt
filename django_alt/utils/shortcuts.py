@@ -141,12 +141,24 @@ def first_defined(*args):
 
 def prohibited(key: str, container: dict = None):
     """
-    shortcut for raising a validation error about an existing prohibited field.
+    shortcut for raising a validation error when a prohibited field is in the container.
     :param container: container to search
     :param key: existing key
     :raises: serializer.ValidationError
     """
     invalid_if(container and key in container, key, 'This field cannot be present.')
+
+
+def prohibited_any(keys: tuple, container: dict = None):
+    """
+    shortcut for raising a validation error when any of the given fields exist in the container.
+    :param container: container to search
+    :param key: existing key
+    :raises: serializer.ValidationError
+    """
+    intersection = set(keys).intersection(container.keys())
+    if container and len(intersection) > 0:
+        invalid(intersection, 'This field cannot be present.')
 
 
 def required(key: str, container: dict = None):
@@ -156,7 +168,9 @@ def required(key: str, container: dict = None):
     :param key: missing key
     :raises: serializer.ValidationError
     """
-    invalid_if(container and key not in container, key, 'This field is required.')
+    if container and key in container:
+        return container[key]
+    invalid(key, 'This field is required.')
 
 
 def try_cast(typ, value):

@@ -1,3 +1,4 @@
+import inspect
 from abc import abstractmethod
 from collections import OrderedDict
 
@@ -46,7 +47,13 @@ class Validator:
         for field in sorted(field_names):
             name = ''.join((self.FIELD_VALIDATOR_PREFIX, field))
             if hasattr(self, name) and callable(getattr(self, name)) and field in attrs:
-                getattr(self, name)(attrs[field])
+                func = getattr(self, name)
+                if len(inspect.getfullargspec(func).args) == 3:
+                    # field_<>(self, value, attrs)
+                    getattr(self, name)(attrs[field], attrs)
+                else:
+                    # field_<>(self, value)
+                    getattr(self, name)(attrs[field])
 
     def clean_fields(self, attrs, field_names):
         """
