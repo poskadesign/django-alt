@@ -86,6 +86,14 @@ def coal(obj, fallback):
         return fallback
 
 
+def coald(obj, fallback_lambda):
+    """
+    A deferred variation of the null-coalescing operator.
+    Returns obj if it is defined, execution result of a parametress lambda (fallback_lambda) otherwise.
+    """
+    return obj if obj is not None else fallback_lambda()
+
+
 def if_all_in(keys, container, func_true=None):
     """
     checks if all given keys are in the container and
@@ -129,6 +137,26 @@ def first_defined(*args):
         if arg is not None:
             return arg
     return None
+
+
+def prohibited(key: str, container: dict = None):
+    """
+    shortcut for raising a validation error about an existing prohibited field.
+    :param container: container to search
+    :param key: existing key
+    :raises: serializer.ValidationError
+    """
+    invalid_if(container and key in container, key, 'This field cannot be present.')
+
+
+def required(key: str, container: dict = None):
+    """
+    shortcut for raising a validation error about a missing required field.
+    :param container: container to search
+    :param key: missing key
+    :raises: serializer.ValidationError
+    """
+    invalid_if(container and key not in container, key, 'This field is required.')
 
 
 def try_cast(typ, value):

@@ -12,7 +12,7 @@ class ValidatedManager:
         self.model = model
         self.validator = validator_class(model=model, serializer=None, **context)
 
-    def _validation_sequence(self, attrs: dict):
+    def validation_sequence(self, attrs: dict):
         self.validator.clean_fields(attrs, attrs.keys())
 
         attrs = coal(self.validator.clean(attrs), attrs)
@@ -30,7 +30,7 @@ class ValidatedManager:
         :param attrs: attributes to create the instance from.
         :return: the newly created instance
         """
-        self._validation_sequence(attrs)
+        self.validation_sequence(attrs)
 
         instance = self.model.objects.create(**attrs)
         self.validator.did_create(instance, attrs)
@@ -45,7 +45,7 @@ class ValidatedManager:
         """
         instances = []
         for attrs in list_of_attrs:
-            self._validation_sequence(attrs)
+            self.validation_sequence(attrs)
             instances.append(self.model(**attrs))
 
         self.model.objects.bulk_create(instances)
