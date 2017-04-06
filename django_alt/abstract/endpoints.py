@@ -57,7 +57,11 @@ def _view_prototype(view_self, request, **url):
 
         if KW_CONFIG_URL_FIELDS in config:
             try:
-                request.data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
+                # TODO find another way
+                # explicitly loads data to _full_data
+                request.data
+                request._full_data = request._full_data.copy()
+                request._full_data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
             except KeyError:
                 raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
                                       '`{0}` dump: {2}').format(KW_CONFIG_URL_FIELDS, view_self.endpoint_class.__name__,
