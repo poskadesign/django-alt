@@ -1,4 +1,6 @@
-# django-alt
+![logo]
+
+-----
 
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
@@ -19,7 +21,20 @@ pip install django-alt
 - Cumbersome lifecycle hooks (e.g. code to execute upon object creation).
 - Allow more declarative expressions while making it easy to *spice* them up.
 
-This package aims to help solving these problems. Be sure to also 
+### Solution
+
+This package aims to help solving these problems. It allows a notion of a
+`validator` &ndash; an encapsulation of domain logic for a given model.
+Validators allow you to:
+ - Handle before and after lifecycle events of model changes (creation, update, deletion).
+ - Write arbitrary methods to clean and validate individual fields that are automatically called when needed.
+ - Write arbitrary methods to validate interdependent fields.
+  
+This package also includes `managers` and `endpoints` &ndash; means to automate 
+validated model object management as REST resources (or not). A plentiful of
+shorthand helpers make validating CRUD ops feel like a breeze. Validators also easily tie into existing infrastructure. 
+ 
+Be sure to also 
 checkout [`recipes.md`](https://github.com/poskadesign/django-alt/blob/master/docs/recipes.md) 
 for quick&ndash;starting and more examples
 or [`indepth.md`](https://github.com/poskadesign/django-alt/blob/master/docs/indepth.md)
@@ -91,3 +106,5 @@ Any contribution or ideas are welcome!
 ### Author & License
 Vilius Poška.  
 This project is freely licensed under the MIT license.  
+
+[logo]: docs/logo-small.png "django-alt logo"
