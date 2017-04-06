@@ -24,6 +24,19 @@ class Endpoint(metaclass=MetaEndpoint):
                 'Offending endpoint: `{0}`'
             ).format(cls.__name__))
         return cls.view.as_view(**kwargs)
+		
+		
+	def __call__(self, *args, **kwargs):
+        """
+        Produces a more descriptive error message, when a call
+        to `.as_view()` is missed in the URL configuration.
+        :raises ImproperlyConfigured
+        """
+        raise ImproperlyConfigured((
+            'You are trying to call an `Endpoint` object directly.\n'
+            'Did you forget to use `.as_view()` in the URL configuration?\n'
+            'Offending endpoint: `{0}`'
+        ).format(self.__class__.__name__))
 
     """
     Default view handler implementations

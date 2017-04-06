@@ -109,6 +109,17 @@ class MetaEndpoint(type):
         if len(bases) and len(clsdict['config']):
             cls.view.endpoint_class = cls
         return cls
+        
+    def __call__(cls, *args, **kwargs):
+        """
+        Produces a more descriptive error message, when a call
+        to `.as_view()` is missed in the URL configuration.
+        :raises ImproperlyConfigured
+        """
+        raise ImproperlyConfigured((
+            'You are trying to call an `Endpoint` object directly.\n'
+            'Did you forget to use `.as_view()` in the URL configuration?\n'
+        ))
 
     @staticmethod
     def transform_config_shorthands(config_dict: dict) -> dict:
