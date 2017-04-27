@@ -6,6 +6,7 @@ from experimental.validators import Validator
 
 class ValidatedManager:
     def __init__(self, model_class: Type[Model], validator_class: Type[Validator], **context):
+        print('M')
         self.context = context
         self.model_class = model_class
         self.validator_class = validator_class
