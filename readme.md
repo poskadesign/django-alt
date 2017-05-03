@@ -5,7 +5,7 @@
 django-alt is an alternative approach to data validation and 
 REST endpoint definition in Django and DRF.
 
-Latest version is **0.61**/**0.62a0**.
+Latest version is **0.61**/**0.62a1**.
 
 ### Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
