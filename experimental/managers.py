@@ -6,24 +6,24 @@ from experimental.validators import Validator
 
 class ValidatedManager:
     def __init__(self, model_class: Type[Model], validator_class: Type[Validator], **context):
-        print('M')
         self.context = context
         self.model_class = model_class
         self.validator_class = validator_class
         self.validator = None
 
     def make_validator(self, **attrs):
-        return self.validator_class(attrs, model=self.model_class, **self.context)
+        self.validator = self.validator_class(attrs, model=self.model_class, **self.context)
+        return self.validator
 
     def validate_only(self, **attrs):
-        self.validator = self.make_validator(**attrs)
+        self.make_validator(**attrs)
         self.validator.clean_fields()
         self.validator.clean()
 
         self.validator.base()
         self.validator.validate_fields()
         self.validator.validate_checks()
-        return attrs
+        return self.validator.attrs
 
     def do_create(self, **attrs):
         """
@@ -68,7 +68,7 @@ class ValidatedManager:
         self.validator.will_update(instance)
         self.validator.base_db()
 
-        for k, v in attrs.items():
+        for k, v in self.validator.attrs.items():
             setattr(instance, k, v)
         instance.save()
 
@@ -82,8 +82,8 @@ class ValidatedManager:
         :param attrs: extra attributes to pass to the validation engine
         :return: deleted instance(s)
         """
-        validator = self.make_validator(**attrs)
-        validator.will_delete(queryset)
+        self.make_validator(**attrs)
+        self.validator.will_delete(queryset)
         queryset.delete()
-        validator.did_delete(queryset)
+        self.validator.did_delete(queryset)
         return queryset

@@ -27,7 +27,7 @@ class BaseLifecycleHooks:
         pass
 
     @abstractmethod
-    def will_read(self):
+    def will_read(self, instance: Type[Model]):
         pass
 
     @abstractmethod
@@ -81,10 +81,6 @@ class BaseLifecycleHooks:
         """
         pass
 
-    @abstractmethod
-    def did_read(self):
-        pass
-
 
 class Validator(BaseLifecycleHooks):
     """
@@ -95,6 +91,7 @@ class Validator(BaseLifecycleHooks):
 
     FIELD_CLEAN_PREFIX = 'clean_'
     FIELD_VALIDATOR_PREFIX = 'field_'
+    FIELD_READ_PREP_PREFIX = 'read_'
 
     def __init__(self, attrs, *, model=None, **context):
         """
@@ -102,8 +99,16 @@ class Validator(BaseLifecycleHooks):
         :param [context]: any data that gets passed as serializer kwargs
         """
         self.model = model
-        self.attrs = ddict(attrs)
         self.context = ddict(context)
+        self._attrs = ddict(attrs)
+
+    @property
+    def attrs(self):
+        return self._attrs
+
+    @attrs.setter
+    def attrs(self, value):
+        self._attrs = ddict(value)
 
     def validate_checks(self):
         """
@@ -135,12 +140,27 @@ class Validator(BaseLifecycleHooks):
         where field_name corresponds to a attribute present in the attrs
         dict, executes such functions with the attribute's value
         as the parameter and sets the return value on the attrs dict
-        :return: cleaned value
+        :return: None
         """
         for field in sorted(self.attrs.keys()):
             name = ''.join((self.FIELD_CLEAN_PREFIX, field))
             if hasattr(self, name) and callable(getattr(self, name)):
                 self.attrs[field] = getattr(self, name)(self.attrs[field])
+
+    def prepare_read_fields(self, instance):
+        """
+        If subclass defines functions named read_<field_name>
+        where field_name corresponds to a field declared on the
+        serializer, executes such functions with the field's 
+        representation value and read instance as the parameter.
+        Such functions are expected to returned the prepared value
+        that is written to the representation dict.
+        :return: None
+        """
+        for field in sorted(self.attrs.keys()):
+            name = ''.join((self.FIELD_READ_PREP_PREFIX, field))
+            if hasattr(self, name) and callable(getattr(self, name)):
+                self.attrs[field] = getattr(self, name)(self.attrs[field], instance)
 
     @abstractmethod
     def clean(self):
