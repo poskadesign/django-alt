@@ -22,9 +22,6 @@ class ValidatedManager:
         self.validator.validate_fields(attrs, attrs.keys())
         self.validator.validate_checks(attrs)
 
-        attrs = coal(self.validator.will_create(attrs), attrs)
-        attrs = coal(self.validator.base_db(attrs), attrs)
-
     def create(self, **attrs):
         """
         Validates and creates a model instance
@@ -33,9 +30,32 @@ class ValidatedManager:
         """
         self.validation_sequence(attrs)
 
+        attrs = coal(self.validator.will_create(attrs), attrs)
+        attrs = coal(self.validator.base_db(attrs), attrs)
+
         if not self.no_save:
             instance = self.model.objects.create(**attrs)
             self.validator.did_create(instance, attrs)
+            return instance
+
+        return attrs
+
+    def update(self, instance, **attrs):
+        """
+        Validates and creates a model instance
+        :param attrs: attributes to create the instance from.
+        :return: the newly created instance
+        """
+        self.validation_sequence(attrs)
+
+        attrs = coal(self.validator.will_update(instance, attrs), attrs)
+        attrs = coal(self.validator.base_db(attrs), attrs)
+
+        if not self.no_save:
+            for k, v in attrs.items():
+                setattr(instance, k, v)
+            instance.save()
+            self.validator.did_update(instance, attrs)
             return instance
 
         return attrs
