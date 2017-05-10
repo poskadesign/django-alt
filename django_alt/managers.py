@@ -60,6 +60,11 @@ class ValidatedManager:
 
         return attrs
 
+    def delete(self, queryset):
+        self.validator.will_delete(queryset)
+        queryset.delete()
+        self.validator.did_delete()
+
     def create_many(self, list_of_attrs):
         """
         TBA
