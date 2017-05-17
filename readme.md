@@ -6,6 +6,7 @@ django-alt is an alternative approach to data validation and
 REST endpoint definition in Django and DRF.
 
 [![pypi-version]][pypi]
+
 Latest version is **0.61**/**0.64a0**.
 
 ### Installation
@@ -110,3 +111,4 @@ This project is freely licensed under the MIT license.
 
 [logo]: docs/logo-small.png "django-alt logo"
 [pypi-version]: https://img.shields.io/pypi/v/django_alt.svg
+[pypi]: https://pypi.python.org/pypi/django-alt
