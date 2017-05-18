@@ -17,6 +17,14 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
     def update(self, instance, validated_data):
         return self.do_update(instance)
 
+    def delete(self):
+        assert self.instance is not None, (
+            'An instance was not passed to `{}` constructor\n'
+            'but `delete` was called.'
+            'Did you forget to pass an instance when constructing the serializer?'
+        ).format(self.__class__.__qualname__)
+        return self.do_delete(self.instance)
+
     def to_representation(self, instance):
         attrs = super().to_representation(instance)
         if self.validator is None:

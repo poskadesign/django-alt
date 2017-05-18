@@ -5,6 +5,12 @@ from experimental.validators import Validator
 
 
 class ValidatedManager:
+    _error_dual_init = lambda self, method_name: (
+        'Attempting to pass `attrs` when validator was already instantiated.\n'
+        'If you explicitly call `validate_only`, do not pass any parameters to `{}`.\n'
+        'Offending manager: `{} ({})`.'
+    ).format(method_name, self.__class__.__name__, self.__class__.__qualname__)
+
     def __init__(self, model_class: Type[Model], validator_class: Type[Validator], **context):
         self.context = context
         self.model_class = model_class
@@ -34,11 +40,7 @@ class ValidatedManager:
         if self.validator is None:
             self.validate_only(**attrs)
         elif len(attrs):
-            raise AssertionError((
-                'Attempting to pass `attrs` when validator was already instantiated.\n'
-                'If you explicitly call `validate_only`, do not pass any parameters to `do_create`.\n'
-                'Offending manager: `{} ({})`.'
-            ).format(self.__class__.__name__, self.__class__.__qualname__))
+            raise AssertionError(self._error_dual_init('do_create'))
 
         self.validator.will_create()
         self.validator.base_db()
@@ -59,11 +61,7 @@ class ValidatedManager:
         if self.validator is None:
             self.validate_only(**attrs)
         elif len(attrs):
-            raise AssertionError((
-                'Attempting to pass `attrs` when validator was already instantiated.\n'
-                'If you explicitly call `validate_only`, do not pass any parameters to `do_update`.\n'
-                'Offending manager: `{} ({})`.'
-            ).format(self.__class__.__name__, self.__class__.__qualname__))
+            raise AssertionError(self._error_dual_init('do_update'))
 
         self.validator.will_update(instance)
         self.validator.base_db()
@@ -82,7 +80,9 @@ class ValidatedManager:
         :param attrs: extra attributes to pass to the validation engine
         :return: deleted instance(s)
         """
-        self.make_validator(**attrs)
+        if self.validator is None:
+            self.make_validator(**attrs)
+
         self.validator.will_delete(queryset)
         queryset.delete()
         self.validator.did_delete(queryset)

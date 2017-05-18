@@ -165,34 +165,33 @@ class MetaEndpoint(type):
                     'Allowed methods are `{1}`.'
                 ).format(name, http_methods, method_name)
 
-                if isinstance(contents, dict):
-                    if KW_CONFIG_QUERYSET in contents:
-                        assert callable(contents['query']), (
-                            '`{0}` field in Endpoint `config` must be a callable accepting '
-                            'parameters: `model` and `**url` in endpoint `{1}`'
-                        ).format(KW_CONFIG_QUERYSET, name)
-                        if 'filters' in contents:
-                            assert isinstance(contents[KW_CONFIG_FILTERS], dict), (
-                                '`{0}` field must be of type `dict`, containing pairs of `filter_name`, '
-                                '`filter_func(queryset, value)` in endpoint `{1}`'
-                            ).format(KW_CONFIG_FILTERS, name)
+                if KW_CONFIG_QUERYSET in contents:
+                    assert callable(contents['query']), (
+                        '`{0}` field in Endpoint `config` must be a callable accepting '
+                        'parameters: `model` and `**url` in endpoint `{1}`'
+                    ).format(KW_CONFIG_QUERYSET, name)
+                    if 'filters' in contents:
+                        assert isinstance(contents[KW_CONFIG_FILTERS], dict), (
+                            '`{0}` field must be of type `dict`, containing pairs of `filter_name`, '
+                            '`filter_func(queryset, value)` in endpoint `{1}`'
+                        ).format(KW_CONFIG_FILTERS, name)
 
-                    elif method_name == 'delete':
-                        raise AssertionError(('`config` for `delete` must include '
-                                              '`{0}` field for endpoint `{1}`').format(KW_CONFIG_QUERYSET, name))
+                elif method_name == 'delete':
+                    raise AssertionError(('`config` for `delete` must include '
+                                          '`{0}` field for endpoint `{1}`').format(KW_CONFIG_QUERYSET, name))
 
-                    elif KW_CONFIG_FILTERS in contents:
-                        raise AssertionError('`{0}` cannot be used without `{1}` in endpoint `{2}`'
-                                             .format(KW_CONFIG_FILTERS, KW_CONFIG_QUERYSET, name))
+                elif KW_CONFIG_FILTERS in contents:
+                    raise AssertionError('`{0}` cannot be used without `{1}` in endpoint `{2}`'
+                                         .format(KW_CONFIG_FILTERS, KW_CONFIG_QUERYSET, name))
 
-                    if KW_CONFIG_URL_FIELDS in contents:
-                        assert hasattr(contents[KW_CONFIG_URL_FIELDS], '__iter__'), (
-                            '`{0}` config field must be an iterable in endpoint `{1}`'
-                        ).format(KW_CONFIG_URL_FIELDS, name)
+                if KW_CONFIG_URL_FIELDS in contents:
+                    assert hasattr(contents[KW_CONFIG_URL_FIELDS], '__iter__'), (
+                        '`{0}` config field must be an iterable in endpoint `{1}`'
+                    ).format(KW_CONFIG_URL_FIELDS, name)
 
-                    if KW_CONFIG_URL_DONT_NORMALIZE in contents:
-                        if KW_CONFIG_URL_DONT_NORMALIZE is not True:
-                            del contents[KW_CONFIG_URL_DONT_NORMALIZE]
+                if KW_CONFIG_URL_DONT_NORMALIZE in contents:
+                    if KW_CONFIG_URL_DONT_NORMALIZE is not True:
+                        del contents[KW_CONFIG_URL_DONT_NORMALIZE]
 
         clsdict['config'] = config
 

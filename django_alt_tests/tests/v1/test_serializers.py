@@ -56,6 +56,10 @@ class ConcreteSerializer(ValidatedModelSerializer):
         self.calls.append('do_update')
         return super().do_update(instance, **attrs)
 
+    def do_delete(self, queryset, **attrs):
+        self.calls.append('do_delete')
+        return super().do_delete(queryset, **attrs)
+
     class Meta:
         model = ModelA
         validator = ConcreteValidator
@@ -137,3 +141,34 @@ class ValidatedModelSerializerTests(TestCase):
             'field_1': 'def',
             'field_2': 43,
         })
+
+    def test_serializer_delete_no_validation_positive(self):
+        obj = ModelA.objects.create(field_1='abc', field_2=1337)
+        serializer = ConcreteSerializer(obj)
+
+        self.assertEqual(ModelA.objects.count(), 1)
+        serializer.delete()
+        self.assertEqual(ModelA.objects.count(), 0)
+
+        self.assertEqual(len(serializer.calls), 1)
+        self.assertEqual(serializer.calls[0], 'do_delete')
+        self.assertEqual(serializer.validator.callstack, ['will_delete', 'did_delete'])
+
+        data = serializer.data
+        self.assertEqual(serializer.validator.callstack, ['will_delete', 'did_delete', 'will_read'])
+
+    def test_serializer_delete_with_validation_positive(self):
+        obj = ModelA.objects.create(field_1='abc', field_2=1337)
+        serializer = ConcreteSerializer(obj, data=dict(field_1='abc', field_2=1338))
+
+        self.assertEqual(ModelA.objects.count(), 1)
+        serializer.is_valid(raise_exception=True)
+        serializer.delete()
+        self.assertEqual(ModelA.objects.count(), 0)
+
+        self.assertEqual(len(serializer.calls), 1)
+        self.assertEqual(serializer.calls[0], 'do_delete')
+        self.assertEqual(serializer.validator.callstack, ['clean', 'base', 'will_delete', 'did_delete'])
+
+        data = serializer.data
+        self.assertEqual(serializer.validator.callstack, ['clean', 'base', 'will_delete', 'did_delete', 'will_read'])
