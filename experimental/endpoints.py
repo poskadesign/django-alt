@@ -1,12 +1,13 @@
 from functools import partial
+from typing import Union, Type, Tuple
 
-from django.core.exceptions import ImproperlyConfigured
-from django.http import HttpResponse
+from django.core.exceptions import ValidationError as DjangoValidationError, ImproperlyConfigured
+from django.http.response import HttpResponseBase
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
-from typing import Union, Type, Tuple
 
+from django_alt.utils.shortcuts import invalid
 from experimental.contexts import RequestContext
 from experimental.dotdict import ddict
 
@@ -19,11 +20,81 @@ KW_CONFIG_URL_FIELDS = 'fields_from_url'
 KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
 
 
-def _view_proto(endpoint_self, request, *args, **kwargs):
-    if request.method.lower() not in endpoint_self.config:
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+class _ViewProto:
+    @staticmethod
+    def apply_filters(qs, filters, query_params):
+        current_param = None
+        try:
+            for param, func in filters.items():
+                current_param = param
+                if param in query_params:
+                    qs = func(qs, query_params[param])
+            return qs
+        except DjangoValidationError as e:
+            invalid(current_param, e.message)
+        except ValueError as e:
+            invalid(current_param, str(e))
 
-    return HttpResponse('Good')
+    @staticmethod
+    def defuse_response(responder, context):
+        try:
+            return responder(context)
+        except:
+            raise AssertionError()
+            pass
+
+
+    @staticmethod
+    def respond(endpoint_self: Type['Endpoint'], request, *args, **kwargs):
+        method = request.method.lower()
+        config = endpoint_self.config.get(method, None)
+        if config is None:
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # TODO solve for HEAD
+        if KW_CONFIG_URL_DONT_NORMALIZE not in config:
+            pass
+            # TODO
+            # url = _normalize_url(**kwargs)
+
+        if KW_CONFIG_URL_FIELDS in config:
+            # TODO
+            try:
+                pass
+            except KeyError as ex:
+                pass
+
+        queryset = None
+        if KW_CONFIG_QUERYSET in config:
+            queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
+            if KW_CONFIG_FILTERS in config and len(request.query_params):
+                queryset = _ViewProto.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+
+        context = RequestContext(request, queryset=queryset, permission_test=None)
+        response = _ViewProto.defuse_response(getattr(endpoint_self, 'on_' + method), context)
+
+        try:
+            if isinstance(response, dict):
+                # response: dict
+                return Response(*response)
+            elif isinstance(response, HttpResponseBase):
+                # response: Response
+                return response
+            elif isinstance(response, tuple) and len(response) == 2:
+                # response: Tuple[dict, int]
+                assert isinstance(response[0], dict) and isinstance(response[1], int)
+                return Response(*response)
+            raise TypeError()
+        except (TypeError, AssertionError, KeyError):
+            raise AssertionError(
+                (
+                    'Incorrect return type on method `on_{}`.\n'
+                    'Endpoint methods starting with `on_` must return either:\n'
+                    ' - response_data: dict\n'
+                    ' - response_obj: rest_framework.response.Response\n'
+                    ' - (response_data, status_code): (dict, int)\n'
+                    'Offending endpoint: `{}`.'
+                ).format(method, endpoint_self.__class__.__name__))
 
 
 class MetaEndpoint(type):
@@ -131,30 +202,28 @@ class Endpoint(metaclass=MetaEndpoint):
         to `.as_view()` is missed in the URL configuration.
         :raises ImproperlyConfigured
         """
-        raise ImproperlyConfigured((
-                                       'You are trying to call an `Endpoint` object directly.\n'
-                                       'Did you forget to use `.as_view()` in the URL configuration?\n'
-                                       'Offending endpoint: `{0}`'
-                                   ).format(self.__class__.__qualname__))
+        raise ImproperlyConfigured(('You are trying to call an `Endpoint` object directly.\n'
+                                    'Did you forget to use `.as_view()` in the URL configuration?\n'
+                                    'Offending endpoint: `{0}`'
+                                    ).format(self.__class__.__qualname__))
 
     @classmethod
-    def as_view(cls, **kwargs):
+    def as_view(cls):
         """
         Acts as a main entry point for a request-response process,
         allowing to use `MyEndpoint.as_view()` directly in urlpatterns.
         :raises ImproperlyConfigured
         """
         if not len(cls.config):
-            raise ImproperlyConfigured((
-                                           'You are trying to call `as_view` on an endpoint with an empty config.\n'
-                                           'Did you forget to specify the `config` attribute?\n'
-                                           'Offending endpoint: `{0}`'
-                                       ).format(cls.__qualname__))
-        return partial(_view_proto, cls())
+            raise ImproperlyConfigured(('You are trying to call `as_view` on an endpoint with an empty config.\n'
+                                        'Did you forget to specify the `config` attribute?\n'
+                                        'Offending endpoint: `{0}`'
+                                        ).format(cls.__qualname__))
+        return partial(_ViewProto.respond, cls())
 
     """
     Default view handler implementations
     """
 
-    def on_get(self, context: Type[RequestContext], **url) -> Union[dict, Tuple[dict, int]]:
+    def on_get(self, context: Type[RequestContext], **url) -> Union[Response, dict, Tuple[dict, int]]:
         pass

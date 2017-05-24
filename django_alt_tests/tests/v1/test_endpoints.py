@@ -2,10 +2,12 @@ import inspect
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
+from rest_framework import serializers
+from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
 from django_alt_tests.conf.models import ModelA
-from experimental.endpoints import Endpoint, KW_CONFIG_URL_FIELDS
+from experimental.endpoints import Endpoint, KW_CONFIG_URL_FIELDS, MetaEndpoint
 from experimental.serializers import ValidatedSerializer
 
 
@@ -22,10 +24,66 @@ class ConcreteEndpoint(Endpoint):
 
 
 class EndpointViewLogicTests(TestCase):
+    def setUp(self):
+        class EBase(Endpoint):
+            serializer = ConcreteSerializer
+            config = { 'get': None }
+        self.EBase = EBase
+
+    def patchE(self, method):
+        self.EBase.on_get = method
+        return self.EBase.as_view()(self.mock_request('GET'))
+
+    def mock_request(self, method):
+        return type('RequestMock', tuple(), dict(method=method))
+
     def test_should_return_405_for_nonexistent_method_positive(self):
-        req = type('RequestMock', tuple(), dict(method='POST'))
+        req = self.mock_request('POST')
         resp = ConcreteEndpoint.as_view()(req)
         self.assertEqual(resp.status_code, 405)
+
+    def test_overridden_endpoint_handler_return_type_checks_negative(self):
+        def on_get_1(self, context, **url):
+            return None
+        def on_get_2(self, context, **url):
+            return 200
+        def on_get_3(self, context, **url):
+            return {'a', 'b'}
+        def on_get_4(self, context, **url):
+            return {'a': 'b'}
+        def on_get_5(self, context, **url):
+            return {'a': 'b'}, 200
+        def on_get_6(self, context, **url):
+            return Response({'a': 'b'}, 200)
+        def on_get_7(self, context, **url):
+            return {'a': 'b'}, 200, 'foo'
+        def on_get_8(self, context, **url):
+            return {'a': 'b'}, 'foo'
+
+        for method in (on_get_1, on_get_2, on_get_3, on_get_7, on_get_8):
+            with self.assertRaises(AssertionError):
+                self.patchE(method)
+
+        all((self.patchE(on_get_4), self.patchE(on_get_5), self.patchE(on_get_6)))
+
+    def test_overridden_endpoint_handler_handles_rest_validation_error_positive(self):
+        def on_get(self, context, **url):
+            raise serializers.ValidationError({'err': ['msg']})
+
+        self.assertEqual(self.patchE(on_get).status_code, 400)
+
+    def test_override_endpoint_handler_positive(self):
+        class OverriddenEndpoint(Endpoint):
+            serializer = ConcreteSerializer
+            config = { 'get': None }
+            def on_get(self, context, **url):
+                return {'test': 'ok'}, 201
+
+        req = self.mock_request('GET')
+        resp = OverriddenEndpoint.as_view()(req)
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, {'test': 'ok'})
+
 
 
 class EndpointDefinitionLogicTests(TestCase):
@@ -167,6 +225,72 @@ class EndpointDefinitionLogicTests(TestCase):
                         'x': lambda x, y: (x, y)
                     }
                 }}
+
+    def test_transform_config_shorthands_positive(self):
+        def are_equal(c1, c0):
+            c1 = MetaEndpoint.transform_config_shorthands(c1)
+            self.assertDictEqual(c0, c1)
+
+        are_equal({
+            'get': None
+        }, {
+            'get': {}
+        })
+
+        are_equal({
+            'get, post': None
+        }, {
+            'get': {},
+            'post': {}
+        })
+
+        are_equal({
+            ' get,post, put': None
+        }, {
+            'get': {},
+            'post': {},
+            'put': {},
+        })
+        are_equal({
+            ' get,post': {
+                'q': 1
+            }
+        }, {
+            'get': {'q': 1},
+            'post': {'q': 1},
+        })
+        are_equal({
+            ' get,post': {
+                'q': 1
+            },
+            'post': {
+                'z': 2
+            }
+        }, {
+            'get': {'q': 1},
+            'post': {'q': 1, 'z': 2},
+        })
+        are_equal({
+            ' get': {
+                'q': 1
+            },
+            'get': {
+                'z': 2
+            }
+        }, {
+            'get': {'q': 1, 'z': 2},
+        })
+        are_equal({
+            ' get, get': {
+                'q': 1
+            },
+            'post,get': {
+                'z': 4
+            }
+        }, {
+            'get': {'q': 1, 'z': 4},
+            'post': {'z': 4}
+        })
 
 
 class EndpointMiscTests(TestCase):
