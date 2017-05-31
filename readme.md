@@ -7,7 +7,7 @@ REST endpoint definition in Django and DRF.
 
 [![pypi-version]][pypi]
 
-Latest version is **0.61**/**0.65a0**.
+Latest version is **0.70**. 
 
 ### Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
@@ -104,6 +104,8 @@ class TodoSpecialEndpoint(Endpoint):
 While on the **0.x** track, this project is subject to rapid
 development and some changes might break reverse&ndash;compatibility.
 Any contribution or ideas are welcome!
+
+To see the hot upcoming features, switch to the `dev-1.0` branch.
 
 ### Author & License
 Vilius Poška.  

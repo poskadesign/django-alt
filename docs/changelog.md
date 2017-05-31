@@ -1,5 +1,39 @@
 # django-alt version changelog
 
+### 0.70
+
+ Breaking changes:
+ 
+ - `post_can` permission callable now includes `url` dict as its second parameter.
+    - before: `lambda request, queryset, attrs: True`.
+    - after: `lambda request, url, queryset, attrs: True`.
+ - `did_delete` lifecycle hook doesn't accept the `attrs` parameter anymore.
+ 
+ Updates:
+ - `clean_` and `field_` `Validator` functions are now passed an optional `attrs` argument.
+ - `on_put` endpoint handler implementation.
+ - `ValidatedManager` introduces `create_many`, `update` and `delete` functions. These work as they would in `Manager`s but
+    use a given `Validator` instance to validate data beforehand. 
+ - `Validator` object now includes a `request` and `permission_test` parameters that are 
+        automatically passed in by endpoints/serializers.
+ - Code is now compliant and works with Django 1.11.
+ - Added new shortcuts:
+   - `coald` &ndash; a deferred variation of the null-coalescing operator.
+   - `is_iterable` &ndash; shortcut for checking if object is an iterable (strings are excluded).
+   - `prohibited` &ndash; shortcut for raising a validation error about an existing prohibited field.
+   - `prohibited_any` &ndash; shortcut for raising a validation error when any of the given fields exist in the container.
+   - `required` &ndash; shortcut for raising a validation error about a missing required field..
+   - `valid_if` &ndash; asserts that a predicate is correct, raising a `serializers.ValidationError` otherwise.
+   - `ensures` &ndash; (alias of `valid_if`) used in Design by Contract methodology to denote that a callable 
+   asserts that a given condition is true before executing any code.
+   - `expects` &ndash; (alias of `valid_if`) used in Design by Contract methodology to denote that a callable 
+   asserts that a given condition is true after its code block is executed.
+ - Added `no_save` parameter to `ValidatedManager.__init__` that skips the actual `ObjectManager` calls if defined.
+ - Some new error messages introduced and others made more user friendly.
+ - Documentation updated to include more relevant info and examples.
+
+
+
 ### 0.61
  - Introduced `ValidatedManager` that allows validate data before 
  creating a new model instance.
