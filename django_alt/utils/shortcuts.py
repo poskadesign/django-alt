@@ -184,3 +184,30 @@ def try_cast(typ, value):
         return typ(value)
     except ValueError:
         return None
+
+
+def valid_if(condition, key_or_list, error_or_list):
+    """
+    Shortcut for raising a validation error if a condition is not met.
+    Think about this function as an assertion (i.e. this condition must be met).
+    :raises: serializers.ValidationError
+    """
+    if not condition:
+        invalid(key_or_list, error_or_list)
+
+
+"""
+Alias of `valid_if`.
+Used in Design by Contract methodology to denote
+that a callable asserts that a given condition is true
+before executing any code
+"""
+expects = valid_if
+
+"""
+Alias of `valid_if`.
+Used in Design by Contract methodology to denote
+that a callable asserts that a given condition is true
+after its code block is executed
+"""
+ensures = valid_if
