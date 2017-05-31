@@ -60,8 +60,19 @@ def _view_prototype(view_self, request, **url):
                 # TODO find another way
                 # explicitly loads data to _full_data
                 request.data
-                request._full_data = request._full_data.copy()
-                request._full_data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
+                updated_fragment = {k: url[k] for k in config[KW_CONFIG_URL_FIELDS]}
+                if isinstance(request._full_data, list):
+                    for member in request._full_data:
+                        assert isinstance(member, dict), (
+                            'An endpoint that accepts a nested list of items\n'
+                            'cannot have `fields_from_url` config set.\n'
+                            'Offending endpoint: `{}`, method: `{}`.\n'
+                            '`request.data` dump: \n`{}`'
+                        ).format(endpoint.__name__, request.method, request._full_data)
+                        member.update(updated_fragment)
+                else:
+                    request._full_data = request._full_data.copy()
+                    request._full_data.update(updated_fragment)
             except KeyError:
                 raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
                                       '`{0}` dump: {2}').format(KW_CONFIG_URL_FIELDS, view_self.endpoint_class.__name__,
