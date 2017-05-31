@@ -60,6 +60,11 @@ def _view_prototype(view_self, request, **url):
                 # TODO find another way
                 # explicitly loads data to _full_data
                 request.data
+                assert not isinstance(request._full_data, list), (
+                    'An endpoint that accepts a list of items\n'
+                    'cannot have `fields_from_url` config set.\n'
+                    'Offending endpoint: `{}`, method: `{}`'
+                ).format(endpoint.__name__, request.method)
                 request._full_data = request._full_data.copy()
                 request._full_data.update({k: url[k] for k in config[KW_CONFIG_URL_FIELDS]})
             except KeyError:
