@@ -145,7 +145,7 @@ def field_<name>(self, value) -> None: pass
  
 ----------------------
 ```python
-def check_<what>(self, value) -> None: pass
+def check_<what>(self, attrs: dict) -> None: pass
 ```
  If subclass defines functions with names starting with `check_`,
  executes such functions with attrs dict as the parameter.
