@@ -182,7 +182,7 @@ def try_cast(typ, value):
     """
     try:
         return typ(value)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
