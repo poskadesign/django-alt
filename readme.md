@@ -7,7 +7,7 @@ REST endpoint definition in Django and DRF.
 
 [![pypi-version]][pypi]
 
-Latest version is **0.72**.
+Latest version is **0.71**.
 
 ### Installation
 **Requirements**: this package depends on `django` and `djangorestframework`.
