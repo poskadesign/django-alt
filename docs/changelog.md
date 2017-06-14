@@ -1,5 +1,8 @@
 # django-alt version changelog
 
+### 0.71
+ - Endpoint handlers now accept `HttpResponse` subclass as a return parameter.
+
 ### 0.70
 
  Breaking changes:

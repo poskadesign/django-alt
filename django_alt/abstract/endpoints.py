@@ -1,8 +1,8 @@
 import json
 from functools import partial
 
-from django.core.exceptions import ValidationError as DjangoValidationError, ObjectDoesNotExist
-from django.http import Http404
+from django.core.exceptions import ValidationError as DjangoValidationError, ObjectDoesNotExist, ImproperlyConfigured
+from django.http import Http404, HttpResponse
 from rest_framework import serializers
 from rest_framework import status
 from rest_framework.response import Response
@@ -40,6 +40,7 @@ def _normalize_url(**url):
             try_cast(float, value),
             value
         )
+
     return {k: cast(v) for k, v in url.items()}
 
 
@@ -94,9 +95,10 @@ def _view_prototype(view_self, request, **url):
         if post_can is not None and post_can is not True:
             post_can = partial(post_can, request, url, qs)
         handler = getattr(endpoint, 'on_' + method)
-        if method == 'post':
-            return Response(*handler(request, post_can, **url))
-        return Response(*handler(request, qs, post_can, **url))
+        result = handler(endpoint, request, post_can, **url) if method == 'post' else handler(endpoint, request, qs, post_can, **url)
+        if isinstance(result, HttpResponse):
+            return result
+        return Response(*result)
 
     except serializers.ValidationError as e:
         return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
@@ -124,7 +126,7 @@ class MetaEndpoint(type):
         if len(bases) and len(clsdict['config']):
             cls.view.endpoint_class = cls
         return cls
-        
+
     def __call__(cls, *args, **kwargs):
         """
         Produces a more descriptive error message, when a call
