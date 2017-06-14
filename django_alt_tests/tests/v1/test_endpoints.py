@@ -1,8 +1,9 @@
 import inspect
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase
 from rest_framework import serializers
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
@@ -30,12 +31,14 @@ class EndpointViewLogicTests(TestCase):
             config = { 'get': None }
         self.EBase = EBase
 
-    def patchE(self, method):
+    def patchE(self, method, is_anonymous=False):
         self.EBase.on_get = method
-        return self.EBase.as_view()(self.mock_request('GET'))
+        return self.EBase.as_view()(self.mock_request('GET', is_anonymous))
 
-    def mock_request(self, method):
-        return type('RequestMock', tuple(), dict(method=method))
+    def mock_request(self, method, is_anonymous=False):
+        return type('RequestMock', tuple(), dict(
+            method=method, user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous))
+        ))
 
     def test_should_return_405_for_nonexistent_method_positive(self):
         req = self.mock_request('POST')
@@ -60,7 +63,7 @@ class EndpointViewLogicTests(TestCase):
         def on_get_8(self, context, **url):
             return {'a': 'b'}, 'foo'
 
-        for method in (on_get_1, on_get_2, on_get_3, on_get_7, on_get_8):
+        for method in (on_get_1, on_get_3, on_get_7, on_get_8):
             with self.assertRaises(AssertionError):
                 self.patchE(method)
 
@@ -69,8 +72,34 @@ class EndpointViewLogicTests(TestCase):
     def test_overridden_endpoint_handler_handles_rest_validation_error_positive(self):
         def on_get(self, context, **url):
             raise serializers.ValidationError({'err': ['msg']})
-
         self.assertEqual(self.patchE(on_get).status_code, 400)
+
+    def test_overridden_endpoint_handler_handles_django_validation_error_positive(self):
+        def on_get(self, context, **url):
+            raise ValidationError({'err': ['msg']})
+        self.assertEqual(self.patchE(on_get).status_code, 400)
+
+    def test_overridden_endpoint_handler_handles_permission_error_not_logged_in_positive(self):
+        def on_get(self, context, **url):
+            raise PermissionError()
+        self.assertEqual(self.patchE(on_get, True).status_code, 401)
+
+    def test_overridden_endpoint_handler_handles_permission_error_logged_in_positive(self):
+        def on_get(self, context, **url):
+            raise PermissionError()
+        self.assertEqual(self.patchE(on_get, False).status_code, 403)
+
+    def test_overridden_endpoint_handler_handles_django_http404_positive(self):
+        def on_get(self, context, **url):
+            get_object_or_404(ModelA, field_1__exact='nonexistent field')
+        self.assertEqual(self.patchE(on_get).status_code, 404)
+        self.assertEqual(self.patchE(on_get).data, 'No ModelA matches the given query.')
+
+    def test_overridden_endpoint_handler_handles_object_does_not_exist_positive(self):
+        def on_get(self, context, **url):
+            ModelA.objects.get(field_1__exact='nonexistent field')
+        self.assertEqual(self.patchE(on_get).status_code, 404)
+        self.assertEqual(self.patchE(on_get).data, 'ModelA matching query does not exist.')
 
     def test_override_endpoint_handler_positive(self):
         class OverriddenEndpoint(Endpoint):

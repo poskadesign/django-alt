@@ -1,11 +1,11 @@
 from functools import partial
 from typing import Union, Type, Tuple
 
-from django.core.exceptions import ValidationError as DjangoValidationError, ImproperlyConfigured
-from django.http.response import HttpResponseBase
+from django.core.exceptions import ValidationError as django_ValidationError, ImproperlyConfigured, ObjectDoesNotExist
+from django.http.response import HttpResponseBase, Http404
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.serializers import BaseSerializer
+from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
 
 from django_alt.utils.shortcuts import invalid
 from experimental.contexts import RequestContext
@@ -20,7 +20,7 @@ KW_CONFIG_URL_FIELDS = 'fields_from_url'
 KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
 
 
-class _ViewProto:
+class ViewPrototype:
     @staticmethod
     def apply_filters(qs, filters, query_params):
         current_param = None
@@ -30,7 +30,7 @@ class _ViewProto:
                 if param in query_params:
                     qs = func(qs, query_params[param])
             return qs
-        except DjangoValidationError as e:
+        except django_ValidationError as e:
             invalid(current_param, e.message)
         except ValueError as e:
             invalid(current_param, str(e))
@@ -39,10 +39,14 @@ class _ViewProto:
     def defuse_response(responder, context):
         try:
             return responder(context)
-        except:
-            raise AssertionError()
-            pass
-
+        except drf_ValidationError as e:
+            return e.detail, status.HTTP_400_BAD_REQUEST
+        except django_ValidationError as e:
+            return e.message_dict, status.HTTP_400_BAD_REQUEST
+        except PermissionError:
+            return status.HTTP_401_UNAUTHORIZED if context.request.user.is_anonymous else status.HTTP_403_FORBIDDEN
+        except (Http404, ObjectDoesNotExist) as e:
+            return Response(', '.join(e.args), status.HTTP_404_NOT_FOUND)
 
     @staticmethod
     def respond(endpoint_self: Type['Endpoint'], request, *args, **kwargs):
@@ -51,7 +55,7 @@ class _ViewProto:
         if config is None:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        # TODO solve for HEAD
+        # TODO solve for HTTP HEAD
         if KW_CONFIG_URL_DONT_NORMALIZE not in config:
             pass
             # TODO
@@ -68,22 +72,25 @@ class _ViewProto:
         if KW_CONFIG_QUERYSET in config:
             queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
             if KW_CONFIG_FILTERS in config and len(request.query_params):
-                queryset = _ViewProto.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+                queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
 
         context = RequestContext(request, queryset=queryset, permission_test=None)
-        response = _ViewProto.defuse_response(getattr(endpoint_self, 'on_' + method), context)
+        result = ViewPrototype.defuse_response(getattr(endpoint_self, 'on_' + method), context)
 
         try:
-            if isinstance(response, dict):
-                # response: dict
-                return Response(*response)
-            elif isinstance(response, HttpResponseBase):
-                # response: Response
-                return response
-            elif isinstance(response, tuple) and len(response) == 2:
-                # response: Tuple[dict, int]
-                assert isinstance(response[0], dict) and isinstance(response[1], int)
-                return Response(*response)
+            if isinstance(result, dict):
+                # result: dict
+                return Response(*result)
+            elif isinstance(result, int):
+                # result: int
+                return Response(None, result)
+            elif isinstance(result, HttpResponseBase):
+                # result: Response
+                return result
+            elif isinstance(result, tuple) and len(result) == 2:
+                # result: Tuple[dict, int]
+                assert isinstance(result[0], dict) and isinstance(result[1], int)
+                return Response(*result)
             raise TypeError()
         except (TypeError, AssertionError, KeyError):
             raise AssertionError(
@@ -91,8 +98,9 @@ class _ViewProto:
                     'Incorrect return type on method `on_{}`.\n'
                     'Endpoint methods starting with `on_` must return either:\n'
                     ' - response_data: dict\n'
-                    ' - response_obj: rest_framework.response.Response\n'
-                    ' - (response_data, status_code): (dict, int)\n'
+                    ' - response_obj: Response\n'
+                    ' - response_data, status_code: (dict, int)\n'
+                    ' - status_code: int (response_data is empty)\n'
                     'Offending endpoint: `{}`.'
                 ).format(method, endpoint_self.__class__.__name__))
 
@@ -219,7 +227,7 @@ class Endpoint(metaclass=MetaEndpoint):
                                         'Did you forget to specify the `config` attribute?\n'
                                         'Offending endpoint: `{0}`'
                                         ).format(cls.__qualname__))
-        return partial(_ViewProto.respond, cls())
+        return partial(ViewPrototype.respond, cls())
 
     """
     Default view handler implementations
