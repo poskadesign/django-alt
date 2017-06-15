@@ -6,15 +6,28 @@ from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
+from rest_framework.utils.serializer_helpers import ReturnList
 
 from django_alt_tests.conf.models import ModelA
 from experimental.endpoints import Endpoint, KW_CONFIG_URL_FIELDS, MetaEndpoint
-from experimental.serializers import ValidatedSerializer
+from experimental.serializers import ValidatedSerializer, ValidatedModelSerializer
+from experimental.validators import Validator
 
 
 class ConcreteSerializer(ValidatedSerializer):
     class Meta:
         model = ModelA
+
+
+class ConcreteValidator(Validator):
+    pass
+
+
+class ConcreteModelSerializer(ValidatedModelSerializer):
+    class Meta:
+        model = ModelA
+        validator = ConcreteValidator
+        fields = '__all__'
 
 
 class ConcreteEndpoint(Endpoint):
@@ -30,6 +43,8 @@ class EndpointViewLogicTests(TestCase):
             serializer = ConcreteSerializer
             config = { 'get': None }
         self.EBase = EBase
+        ModelA.objects.create(field_1='a', field_2=1)
+        ModelA.objects.create(field_1='b', field_2=2)
 
     def patchE(self, method, is_anonymous=False):
         self.EBase.on_get = method
@@ -62,12 +77,16 @@ class EndpointViewLogicTests(TestCase):
             return {'a': 'b'}, 200, 'foo'
         def on_get_8(self, context, **url):
             return {'a': 'b'}, 'foo'
+        def on_get_9(self, context, **url):
+            return [1,2,3]
+        def on_get_10(self, context, **url):
+            return ReturnList([1,2,3], serializer=None)
 
-        for method in (on_get_1, on_get_3, on_get_7, on_get_8):
+        for method in (on_get_1, on_get_3, on_get_7, on_get_8, on_get_9):
             with self.assertRaises(AssertionError):
                 self.patchE(method)
 
-        all((self.patchE(on_get_4), self.patchE(on_get_5), self.patchE(on_get_6)))
+        all((self.patchE(on_get_4), self.patchE(on_get_5), self.patchE(on_get_6), self.patchE(on_get_10)))
 
     def test_overridden_endpoint_handler_handles_rest_validation_error_positive(self):
         def on_get(self, context, **url):
@@ -101,6 +120,31 @@ class EndpointViewLogicTests(TestCase):
         self.assertEqual(self.patchE(on_get).status_code, 404)
         self.assertEqual(self.patchE(on_get).data, 'ModelA matching query does not exist.')
 
+    def test_default_get_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'get': {
+                    'query': lambda model, **url: model.objects.all()
+                }
+            }
+        response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
+        self.assertListEqual(response.data,
+                             [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
+        self.assertEqual(response.status_code, 200)
+
+    def test_default_get_single_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'get': {
+                    'query': lambda model, **url: model.objects.first()
+                }
+            }
+        response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
+        self.assertDictEqual(response.data, {'id': 1, 'field_2': 1, 'field_1': 'a'})
+        self.assertEqual(response.status_code, 200)
+
     def test_override_endpoint_handler_positive(self):
         class OverriddenEndpoint(Endpoint):
             serializer = ConcreteSerializer
@@ -112,7 +156,6 @@ class EndpointViewLogicTests(TestCase):
         resp = OverriddenEndpoint.as_view()(req)
         self.assertEqual(resp.status_code, 201)
         self.assertDictEqual(resp.data, {'test': 'ok'})
-
 
 
 class EndpointDefinitionLogicTests(TestCase):
@@ -173,6 +216,15 @@ class EndpointDefinitionLogicTests(TestCase):
                         }
                     }}
         self.assertIn('must be a callable', ex.exception.args[0])
+
+    def test_method_definition_is_not_passed_an_iterable_negative(self):
+        with self.assertRaises(AssertionError) as ex:
+            class MyEndpoint2(Endpoint):
+                serializer = ConcreteSerializer
+                config = {
+                    'get': lambda a: a
+                }
+        self.assertIn('Incorrectly formed endpoint config object', ex.exception.args[0])
 
     def test_get_filters_without_query_negative(self):
         with self.assertRaises(AssertionError) as ex:
@@ -257,7 +309,7 @@ class EndpointDefinitionLogicTests(TestCase):
 
     def test_transform_config_shorthands_positive(self):
         def are_equal(c1, c0):
-            c1 = MetaEndpoint.transform_config_shorthands(c1)
+            c1 = MetaEndpoint.transform_config_shorthands('MockEndpoint', c1)
             self.assertDictEqual(c0, c1)
 
         are_equal({

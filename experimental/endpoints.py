@@ -4,12 +4,15 @@ from typing import Union, Type, Tuple
 from django.core.exceptions import ValidationError as django_ValidationError, ImproperlyConfigured, ObjectDoesNotExist
 from django.http.response import HttpResponseBase, Http404
 from rest_framework import status
+from rest_framework.fields import empty
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
+from rest_framework.utils.serializer_helpers import ReturnList
 
 from django_alt.utils.shortcuts import invalid
 from experimental.contexts import RequestContext
 from experimental.dotdict import ddict
+from experimental.serializers import ValidatedSerializer
 
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 
@@ -78,9 +81,9 @@ class ViewPrototype:
         result = ViewPrototype.defuse_response(getattr(endpoint_self, 'on_' + method), context)
 
         try:
-            if isinstance(result, dict):
+            if isinstance(result, dict) or isinstance(result, ReturnList):
                 # result: dict
-                return Response(*result)
+                return Response(result)
             elif isinstance(result, int):
                 # result: int
                 return Response(None, result)
@@ -135,11 +138,10 @@ class MetaEndpoint(type):
             namespace['model'] = namespace['serializer'].Meta.model
 
         namespace['config'] = mcs.transform_config(clsname, namespace.get('config', {}))
-
         return namespace
 
     @classmethod
-    def transform_config_shorthands(mcs, config):
+    def transform_config_shorthands(mcs, clsname, config):
         result = {}
         for k, v in config.items():
             if v is None:
@@ -148,6 +150,11 @@ class MetaEndpoint(type):
                 for end in k.split(','):
                     result.setdefault(end.strip(), {}).update(v)
             else:
+                assert hasattr(v, '__iter__'), (
+                    'Incorrectly formed endpoint config object:\n'
+                    '\tvalue at key `{}` must be an iterable, not `{}`.\n'
+                    'Offending endpoint: `{}`, definition.'
+                ).format(k.strip(), v.__class__.__name__, clsname)
                 result.setdefault(k.strip(), {}).update(v)
         return result
 
@@ -158,7 +165,7 @@ class MetaEndpoint(type):
         ).format(clsname)
 
         if len(config):
-            config = mcs.transform_config_shorthands(config)
+            config = mcs.transform_config_shorthands(clsname, config)
             for method_name, method_config in config.items():
                 assert method_name in _HTTP_METHODS, (
                     'Endpoint `{}` config definition contains an unknown HTTP method `{}`.\n'
@@ -229,9 +236,16 @@ class Endpoint(metaclass=MetaEndpoint):
                                         ).format(cls.__qualname__))
         return partial(ViewPrototype.respond, cls())
 
+    @classmethod
+    def make_serializer(cls, context: RequestContext, data=empty):
+        extra_kwargs = dict(context=context) if issubclass(cls.serializer, ValidatedSerializer) else {}
+        if context.queryset is None:
+            return cls.serializer(data=data, **extra_kwargs)
+        return cls.serializer(instance=context.queryset, many=context.queryset_has_many, **extra_kwargs)
+
     """
     Default view handler implementations
     """
 
-    def on_get(self, context: Type[RequestContext], **url) -> Union[Response, dict, Tuple[dict, int]]:
-        pass
+    def on_get(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+        return self.make_serializer(context).data
