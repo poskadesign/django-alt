@@ -21,6 +21,7 @@ KW_CONFIG_FILTERS = 'filters'
 KW_CONFIG_QUERYSET = 'query'
 KW_CONFIG_URL_FIELDS = 'fields_from_url'
 KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
+KW_CONFIG_ALLOW_MANY = 'allow_many'
 
 
 class ViewPrototype:
@@ -81,19 +82,22 @@ class ViewPrototype:
         result = ViewPrototype.defuse_response(getattr(endpoint_self, 'on_' + method), context)
 
         try:
-            if isinstance(result, dict) or isinstance(result, ReturnList):
-                # result: dict
-                return Response(result)
-            elif isinstance(result, int):
+            if isinstance(result, int):
                 # result: int
                 return Response(None, result)
             elif isinstance(result, HttpResponseBase):
                 # result: Response
                 return result
-            elif isinstance(result, tuple) and len(result) == 2:
+
+            status_code = None
+            if isinstance(result, tuple) and len(result) == 2:
                 # result: Tuple[dict, int]
-                assert isinstance(result[0], dict) and isinstance(result[1], int)
-                return Response(*result)
+                assert isinstance(result[1], int)
+                status_code, result = result[1], result[0]
+
+            if isinstance(result, dict) or isinstance(result, list):
+                # result: dict
+                return Response(result, status=status_code)
             raise TypeError()
         except (TypeError, AssertionError, KeyError):
             raise AssertionError(
@@ -142,20 +146,20 @@ class MetaEndpoint(type):
 
     @classmethod
     def transform_config_shorthands(mcs, clsname, config):
-        result = {}
+        result = ddict()
         for k, v in config.items():
             if v is None:
-                v = {}
+                v = ddict()
             if ',' in k:
                 for end in k.split(','):
-                    result.setdefault(end.strip(), {}).update(v)
+                    result.setdefault(end.strip(), ddict()).update(v)
             else:
                 assert hasattr(v, '__iter__'), (
                     'Incorrectly formed endpoint config object:\n'
                     '\tvalue at key `{}` must be an iterable, not `{}`.\n'
                     'Offending endpoint: `{}`, definition.'
                 ).format(k.strip(), v.__class__.__name__, clsname)
-                result.setdefault(k.strip(), {}).update(v)
+                result.setdefault(k.strip(), ddict()).update(v)
         return result
 
     @classmethod
@@ -171,6 +175,8 @@ class MetaEndpoint(type):
                     'Endpoint `{}` config definition contains an unknown HTTP method `{}`.\n'
                     'Allowed methods are `{}`.'
                 ).format(clsname, method_name, _HTTP_METHODS)
+
+                method_config.setdefault(KW_CONFIG_ALLOW_MANY, True)
 
                 if KW_CONFIG_QUERYSET in method_config:
                     assert callable(method_config['query']), (
@@ -237,11 +243,22 @@ class Endpoint(metaclass=MetaEndpoint):
         return partial(ViewPrototype.respond, cls())
 
     @classmethod
-    def make_serializer(cls, context: RequestContext, data=empty):
+    def make_serializer(cls, context: RequestContext, data=empty, many=None):
+        """
+        a DRY shortcut for quickly instantiating an assigned serializer.
+        :param context: a `RequestContext` object to extract the queryset from
+        :param data: request data that shall be serialized
+        :param many: a bool flag, that when set, means more than one object will be serialized
+        :return: serializer instance
+        """
         extra_kwargs = dict(context=context) if issubclass(cls.serializer, ValidatedSerializer) else {}
         if context.queryset is None:
-            return cls.serializer(data=data, **extra_kwargs)
-        return cls.serializer(instance=context.queryset, many=context.queryset_has_many, **extra_kwargs)
+            return cls.serializer(data=data,
+                                  many=context.data_has_many if many is None else many,
+                                  **extra_kwargs)
+        return cls.serializer(instance=context.queryset,
+                              many=context.queryset_has_many if many is None else many,
+                              **extra_kwargs)
 
     """
     Default view handler implementations
@@ -249,3 +266,8 @@ class Endpoint(metaclass=MetaEndpoint):
 
     def on_get(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
         return self.make_serializer(context).data
+
+    def on_post(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+        allow_many = self.config.post.allow_many
+        serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
+        return ValidatedSerializer.validate_and_save(serializer), 201

@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from experimental.dotdict import ddict
+from experimental.dotdict import ddict, undefined
 
 
 class DdictTests(TestCase):
@@ -64,10 +64,9 @@ class DdictTests(TestCase):
         del d['b']
         self.assertEqual(len(d), 0)
 
-    def test_key_error(self):
+    def test_nonexistent_key(self):
         d = ddict(a=1)
-        with self.assertRaises(KeyError):
-            d.b
+        self.assertTrue(d.b is undefined)
 
     def test_iter(self):
         result = {}
@@ -102,3 +101,22 @@ class DdictTests(TestCase):
         self.assertTrue(a != b)
         self.assertNotEqual(a, b)
         self.assertNotEqual(a, b)
+
+
+class UndefinedTests(TestCase):
+    def test_undefined_is_undefined(self):
+        self.assertTrue(undefined is undefined)
+        self.assertFalse(undefined is False)
+        self.assertFalse(undefined is True)
+        self.assertFalse(undefined is 1)
+        self.assertFalse(undefined is 0)
+        a = undefined
+        self.assertTrue(a is undefined)
+
+    def test_cannot_construct_undefined(self):
+        with self.assertRaises(TypeError):
+            undefined()
+
+    def test_undefined_casts_to_false(self):
+        self.assertFalse(bool(undefined))
+        self.assertFalse(undefined)

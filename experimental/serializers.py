@@ -8,6 +8,21 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         super().__init__(*args, **kwargs)
         ValidatedManager.__init__(self, model_class=model_class, validator_class=validator_class, **kwargs)
 
+    @staticmethod
+    def validate_and_save(serializer: serializers.Serializer, **kwargs):
+        """
+        a DRY Shorthand for executing `Serializer` subclass:
+        - validation procedures
+        - saving the model
+        - returning serialized data
+        :param serializer: rest_framework.serializers.Serializer subclass
+        :param kwargs: extra kwargs to pass to serializer's `save` function
+        :return: serializer.data
+        """
+        serializer.is_valid(raise_exception=True)
+        serializer.save(**kwargs)
+        return serializer.data
+
     def validate(self, attrs):
         return self.validate_only(**attrs)
 

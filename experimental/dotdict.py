@@ -1,6 +1,25 @@
 from itertools import chain
 
 
+class _undefined_meta(type):
+    def __bool__(self):
+        return False
+
+
+class undefined(metaclass=_undefined_meta):
+    """
+    An empty class that designates a non-existing ddict item.
+    Used for graceful item retrieval.
+    Inspired by JavaScript.
+    """
+    def __new__(cls, *args, **kwargs):
+        if cls is undefined:
+            raise TypeError('Class `undefined` cannot be instantiated')
+
+    def __bool__(self):
+        return False
+
+
 class ddict(dict):
     def __init__(self, iterable=None, **kwargs):
         if iterable is not None:
@@ -15,7 +34,12 @@ class ddict(dict):
     def __iter__(self):
         return self.items().__iter__()
 
-    __getattr__ = dict.__getitem__
+    def __getattr__(self, item):
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            return undefined
+
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 

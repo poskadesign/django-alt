@@ -37,7 +37,7 @@ class ConcreteEndpoint(Endpoint):
     }
 
 
-class EndpointViewLogicTests(TestCase):
+class EndpointBaseViewLogicTests(TestCase):
     def setUp(self):
         class EBase(Endpoint):
             serializer = ConcreteSerializer
@@ -50,9 +50,11 @@ class EndpointViewLogicTests(TestCase):
         self.EBase.on_get = method
         return self.EBase.as_view()(self.mock_request('GET', is_anonymous))
 
-    def mock_request(self, method, is_anonymous=False):
+    def mock_request(self, method, is_anonymous=False, data=None):
         return type('RequestMock', tuple(), dict(
-            method=method, user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous))
+            method=method,
+            user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous)),
+            data=data
         ))
 
     def test_should_return_405_for_nonexistent_method_positive(self):
@@ -120,17 +122,12 @@ class EndpointViewLogicTests(TestCase):
         self.assertEqual(self.patchE(on_get).status_code, 404)
         self.assertEqual(self.patchE(on_get).data, 'ModelA matching query does not exist.')
 
-    def test_default_get_many_handler_positive(self):
+    def test_default_get_none_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
             serializer = ConcreteModelSerializer
-            config = {
-                'get': {
-                    'query': lambda model, **url: model.objects.all()
-                }
-            }
+            config = {'get': None}
         response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
-        self.assertListEqual(response.data,
-                             [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
+        self.assertDictEqual(response.data, {'field_2': None, 'field_1': ''})
         self.assertEqual(response.status_code, 200)
 
     def test_default_get_single_handler_positive(self):
@@ -145,17 +142,73 @@ class EndpointViewLogicTests(TestCase):
         self.assertDictEqual(response.data, {'id': 1, 'field_2': 1, 'field_1': 'a'})
         self.assertEqual(response.status_code, 200)
 
+    def test_default_get_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'get': {
+                    'query': lambda model, **url: model.objects.all()
+                }
+            }
+        response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
+        self.assertListEqual(response.data,
+                             [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
+        self.assertEqual(response.status_code, 200)
+
     def test_override_endpoint_handler_positive(self):
         class OverriddenEndpoint(Endpoint):
             serializer = ConcreteSerializer
-            config = { 'get': None }
+            config = {'get': None}
             def on_get(self, context, **url):
                 return {'test': 'ok'}, 201
 
-        req = self.mock_request('GET')
-        resp = OverriddenEndpoint.as_view()(req)
+        resp = OverriddenEndpoint.as_view()(self.mock_request('GET'))
         self.assertEqual(resp.status_code, 201)
         self.assertDictEqual(resp.data, {'test': 'ok'})
+
+    def test_default_post_none_and_data_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'post': None
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('POST'))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+
+    def test_default_post_none_and_data_empty_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'post': None
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data={}))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
+
+    def test_default_post_single_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'post': None
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data={'field_2': 1, 'field_1': 'a'}))
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, {'id': 3, 'field_2': 1, 'field_1': 'a'})
+
+    def test_default_post_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'post': None
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data=[{'field_2': 1, 'field_1': 'a'}, {'field_2': 2, 'field_1': 'b'}]))
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, [{'id': 3, 'field_2': 1, 'field_1': 'a'}, {'id': 4, 'field_2': 2, 'field_1': 'b'}])
 
 
 class EndpointDefinitionLogicTests(TestCase):
@@ -281,6 +334,23 @@ class EndpointDefinitionLogicTests(TestCase):
         class MyEndpoint10(Endpoint):
             serializer = ConcreteSerializer
             config = {'post': {KW_CONFIG_URL_FIELDS: {'foo', 'bar'}}}
+
+    def test_allow_many_flag_set_to_true_automatically_positive(self):
+        class MyEndpoint6(Endpoint):
+            serializer = ConcreteSerializer
+            config = {
+                'get': {'query': lambda x, y: (x, y), },
+                'post': {'query': lambda x, y: (x, y), },
+                'put': {'query': lambda x, y: (x, y), },
+                'patch': {'query': lambda x, y: (x, y), },
+                'delete': {'query': lambda x, y: (x, y), },
+            }
+
+        self.assertTrue(MyEndpoint6.config['get'].allow_many)
+        self.assertTrue(MyEndpoint6.config.post.allow_many)
+        self.assertTrue(MyEndpoint6.config.put.allow_many)
+        self.assertTrue(MyEndpoint6.config.patch.allow_many)
+        self.assertTrue(MyEndpoint6.config.delete.allow_many)
 
     def test_get_with_filters_and_delete_with_query_positive(self):
         class MyEndpoint6(Endpoint):

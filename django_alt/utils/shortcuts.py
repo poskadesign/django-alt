@@ -70,7 +70,7 @@ def queryset_has_many(queryset) -> bool:
     :param queryset: Django QuerySet object
     :return: {bool}
     """
-    return isinstance(queryset, QuerySet) or hasattr(queryset, '__iter__')
+    return isinstance(queryset, QuerySet) or is_iterable(queryset)
 
 
 def coal(obj, fallback):
