@@ -87,15 +87,19 @@ def _view_prototype(view_self, request, **url):
             if pre_can is False or not pre_can(request, **url):
                 raise PermissionError()
 
-        if KW_CONFIG_QUERYSET in config:
-            qs = config[KW_CONFIG_QUERYSET](endpoint.model, **url)
-            if KW_CONFIG_FILTERS in config and len(request.query_params):
-                qs = _apply_filters(qs, config[KW_CONFIG_FILTERS], request.query_params)
+        try:
+            if KW_CONFIG_QUERYSET in config:
+                qs = config[KW_CONFIG_QUERYSET](endpoint.model, **url)
+                if KW_CONFIG_FILTERS in config and len(request.query_params):
+                    qs = _apply_filters(qs, config[KW_CONFIG_FILTERS], request.query_params)
+        except endpoint.model.DoesNotExist:
+            if method != 'put':
+                raise
 
         if post_can is not None and post_can is not True:
             post_can = partial(post_can, request, url, qs)
         handler = getattr(endpoint, 'on_' + method)
-        result = handler(endpoint, request, post_can, **url) if method == 'post' else handler(endpoint, request, qs, post_can, **url)
+        result = handler(request, post_can, **url) if method == 'post' else handler(request, qs, post_can, **url)
         if isinstance(result, HttpResponse):
             return result
         return Response(*result)
