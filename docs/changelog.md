@@ -1,5 +1,9 @@
 # django-alt version changelog
 
+### 0.73
+ - `view_prototype` now doesn't return a 404 when a `QuerySet.get` fails with 
+ `ObjectDoesNotExist` with HTTP PUT, instead creating a new object from request data.
+
 ### 0.71
  - Endpoint handlers now accept `HttpResponse` subclass as a return parameter.
 
