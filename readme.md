@@ -82,6 +82,13 @@ class TodoSerializer(ValidatedModelSerializer):
 ##### endpoints.py
 ```python
 class TodoSpecialEndpoint(Endpoint):
+    """
+    Allows: 
+    /todos/
+    /todos/?hot
+    /todos/?confirmed
+    /todos/?confirmed&hot
+    """
     serializer = TodoSerializer
     config = {
         'get': {
@@ -92,7 +99,7 @@ class TodoSpecialEndpoint(Endpoint):
             }
         }
     }
-    
+       
     @classmethod
     def can_get(cls):
         pre_permission = lambda request, **url: not request.user.is_anonymous
