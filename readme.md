@@ -82,13 +82,6 @@ class TodoSerializer(ValidatedModelSerializer):
 ##### endpoints.py
 ```python
 class TodoSpecialEndpoint(Endpoint):
-    """
-    Allows: 
-    /todos/
-    /todos/?hot
-    /todos/?confirmed
-    /todos/?confirmed&hot
-    """
     serializer = TodoSerializer
     config = {
         'get': {
@@ -106,6 +99,17 @@ class TodoSpecialEndpoint(Endpoint):
         post_permission = lambda request, queryset, attrs: not attrs.get('confirmed', False)
         return (pre_permission, post_permission)
 ```
+
+#### urls.py
+```python
+urlpatterns = [url(r'^todos/$', TodoSpecialEndpoint.as_view())]
+```
+
+This code would automatically create a behind-the-scenes view. This simple definition uses some powerful concepts:
+ - `/todos/` would return all Todo objects serialized as JSON.
+ - `/todos/?hot=true` would return all Todo objects that have an attribute `hot` that is true.
+ - `/todos/?confirmed=true` would return all Todo objects that have an attribute `confirmed` that is true.
+ - `/todos/?confirmed=true&hot=true` you can probably guess...
 
 ### Notes
 While on the **0.x** track, this project is subject to rapid
