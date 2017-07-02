@@ -41,7 +41,8 @@ class EndpointBaseViewLogicTests(TestCase):
     def setUp(self):
         class EBase(Endpoint):
             serializer = ConcreteSerializer
-            config = { 'get': None }
+            config = {'get': None}
+
         self.EBase = EBase
         ModelA.objects.create(field_1='a', field_2=1)
         ModelA.objects.create(field_1='b', field_2=2)
@@ -65,67 +66,88 @@ class EndpointBaseViewLogicTests(TestCase):
     def test_overridden_endpoint_handler_return_type_checks_negative(self):
         def on_get_1(self, context, **url):
             return None
+
         def on_get_2(self, context, **url):
             return 200
+
         def on_get_3(self, context, **url):
             return {'a', 'b'}
+
         def on_get_4(self, context, **url):
             return {'a': 'b'}
+
         def on_get_5(self, context, **url):
             return {'a': 'b'}, 200
+
         def on_get_6(self, context, **url):
             return Response({'a': 'b'}, 200)
+
         def on_get_7(self, context, **url):
             return {'a': 'b'}, 200, 'foo'
+
         def on_get_8(self, context, **url):
             return {'a': 'b'}, 'foo'
-        def on_get_9(self, context, **url):
-            return [1,2,3]
-        def on_get_10(self, context, **url):
-            return ReturnList([1,2,3], serializer=None)
 
-        for method in (on_get_1, on_get_3, on_get_7, on_get_8, on_get_9):
+        def on_get_9(self, context, **url):
+            return [1, 2, 3]
+
+        def on_get_10(self, context, **url):
+            return ReturnList([1, 2, 3], serializer=None)
+
+        for method in (on_get_1, on_get_3, on_get_7, on_get_8):
             with self.assertRaises(AssertionError):
                 self.patchE(method)
 
-        all((self.patchE(on_get_4), self.patchE(on_get_5), self.patchE(on_get_6), self.patchE(on_get_10)))
+        all((self.patchE(on_get_4), self.patchE(on_get_5),
+             self.patchE(on_get_6), self.patchE(on_get_9), self.patchE(on_get_10)))
 
     def test_overridden_endpoint_handler_handles_rest_validation_error_positive(self):
         def on_get(self, context, **url):
             raise serializers.ValidationError({'err': ['msg']})
+
         self.assertEqual(self.patchE(on_get).status_code, 400)
 
     def test_overridden_endpoint_handler_handles_django_validation_error_positive(self):
         def on_get(self, context, **url):
             raise ValidationError({'err': ['msg']})
+
         self.assertEqual(self.patchE(on_get).status_code, 400)
 
     def test_overridden_endpoint_handler_handles_permission_error_not_logged_in_positive(self):
         def on_get(self, context, **url):
             raise PermissionError()
+
         self.assertEqual(self.patchE(on_get, True).status_code, 401)
 
     def test_overridden_endpoint_handler_handles_permission_error_logged_in_positive(self):
         def on_get(self, context, **url):
             raise PermissionError()
+
         self.assertEqual(self.patchE(on_get, False).status_code, 403)
 
     def test_overridden_endpoint_handler_handles_django_http404_positive(self):
         def on_get(self, context, **url):
             get_object_or_404(ModelA, field_1__exact='nonexistent field')
+
         self.assertEqual(self.patchE(on_get).status_code, 404)
-        self.assertEqual(self.patchE(on_get).data, 'No ModelA matches the given query.')
+        self.assertEqual(self.patchE(on_get).data, {'non_field_errors': ['No ModelA matches the given query.']})
 
     def test_overridden_endpoint_handler_handles_object_does_not_exist_positive(self):
         def on_get(self, context, **url):
             ModelA.objects.get(field_1__exact='nonexistent field')
+
         self.assertEqual(self.patchE(on_get).status_code, 404)
-        self.assertEqual(self.patchE(on_get).data, 'ModelA matching query does not exist.')
+        self.assertEqual(self.patchE(on_get).data, {'non_field_errors': ['ModelA matching query does not exist.']})
+
+    """
+    GET handlers
+    """
 
     def test_default_get_none_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
             serializer = ConcreteModelSerializer
             config = {'get': None}
+
         response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
         self.assertDictEqual(response.data, {'field_2': None, 'field_1': ''})
         self.assertEqual(response.status_code, 200)
@@ -138,6 +160,7 @@ class EndpointBaseViewLogicTests(TestCase):
                     'query': lambda model, **url: model.objects.first()
                 }
             }
+
         response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
         self.assertDictEqual(response.data, {'id': 1, 'field_2': 1, 'field_1': 'a'})
         self.assertEqual(response.status_code, 200)
@@ -150,21 +173,27 @@ class EndpointBaseViewLogicTests(TestCase):
                     'query': lambda model, **url: model.objects.all()
                 }
             }
+
         response = ConcreteEndpoint.as_view()(self.mock_request('GET'))
         self.assertListEqual(response.data,
                              [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
         self.assertEqual(response.status_code, 200)
 
-    def test_override_endpoint_handler_positive(self):
+    def test_override_get_endpoint_handler_positive(self):
         class OverriddenEndpoint(Endpoint):
             serializer = ConcreteSerializer
             config = {'get': None}
+
             def on_get(self, context, **url):
                 return {'test': 'ok'}, 201
 
         resp = OverriddenEndpoint.as_view()(self.mock_request('GET'))
         self.assertEqual(resp.status_code, 201)
         self.assertDictEqual(resp.data, {'test': 'ok'})
+
+    """
+    POST handlers
+    """
 
     def test_default_post_none_and_data_none_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -186,7 +215,8 @@ class EndpointBaseViewLogicTests(TestCase):
 
         resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data={}))
         self.assertEqual(resp.status_code, 400)
-        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
+        self.assertDictEqual(resp.data,
+                             {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
 
     def test_default_post_single_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -198,6 +228,10 @@ class EndpointBaseViewLogicTests(TestCase):
         resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data={'field_2': 1, 'field_1': 'a'}))
         self.assertEqual(resp.status_code, 201)
         self.assertDictEqual(resp.data, {'id': 3, 'field_2': 1, 'field_1': 'a'})
+        self.assertEqual(ModelA.objects.count(), 3)
+        self.assertEqual(ModelA.objects.last().id, 3)
+        self.assertEqual(ModelA.objects.last().field_2, 1)
+        self.assertEqual(ModelA.objects.last().field_1, 'a')
 
     def test_default_post_many_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -206,9 +240,101 @@ class EndpointBaseViewLogicTests(TestCase):
                 'post': None
             }
 
-        resp = ConcreteEndpoint.as_view()(self.mock_request('POST', data=[{'field_2': 1, 'field_1': 'a'}, {'field_2': 2, 'field_1': 'b'}]))
+        resp = ConcreteEndpoint.as_view()(
+            self.mock_request('POST', data=[{'field_2': 1, 'field_1': 'a'}, {'field_2': 2, 'field_1': 'b'}]))
         self.assertEqual(resp.status_code, 201)
-        self.assertDictEqual(resp.data, [{'id': 3, 'field_2': 1, 'field_1': 'a'}, {'id': 4, 'field_2': 2, 'field_1': 'b'}])
+        self.assertListEqual(resp.data,
+                             [{'id': 3, 'field_2': 1, 'field_1': 'a'}, {'id': 4, 'field_2': 2, 'field_1': 'b'}])
+        self.assertEqual(ModelA.objects.count(), 4)
+        self.assertEqual(ModelA.objects.all()[2].id, 3)
+        self.assertEqual(ModelA.objects.all()[2].field_2, 1)
+        self.assertEqual(ModelA.objects.all()[2].field_1, 'a')
+        self.assertEqual(ModelA.objects.all()[3].id, 4)
+        self.assertEqual(ModelA.objects.all()[3].field_2, 2)
+        self.assertEqual(ModelA.objects.all()[3].field_1, 'b')
+
+    def test_default_post_many_not_allowed_handler_negative(self):
+        with self.assertRaises(AssertionError):
+            class ConcreteEndpoint(Endpoint):
+                serializer = ConcreteModelSerializer
+                config = {
+                    'post': None,
+                    'allow_many': False
+                }
+
+            ConcreteEndpoint.as_view()(
+                self.mock_request('POST', data=[{'field_2': 1, 'field_1': 'a'}, {'field_2': 2, 'field_1': 'b'}]))
+
+    """
+    PATCH handlers
+    """
+
+    def test_default_patch_query_returns_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda *args, **kwargs: None
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH'))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_default_patch_query_raises_no_data_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH'))
+        self.assertEqual(resp.status_code, 404)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['ModelA matching query does not exist.']})
+
+    def test_default_patch_query_raises_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH', data={'field_2': 5}))
+        self.assertEqual(resp.status_code, 404)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['ModelA matching query does not exist.']})
+
+    def test_default_patch_none_and_data_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH'))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+
+    def test_default_patch_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH', data={'field_1': 'updated'}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, {'id': 1, 'field_2': 1, 'field_1': 'updated'})
+        self.assertEqual(ModelA.objects.first().field_1, 'updated')
+        self.assertEqual(ModelA.objects.first().field_2, 1)
+        self.assertEqual(ModelA.objects.first().id, 1)
 
 
 class EndpointDefinitionLogicTests(TestCase):
@@ -322,7 +448,16 @@ class EndpointDefinitionLogicTests(TestCase):
                 }
         self.assertIn('field must be an iterable', ex.exception.args[0])
 
-    def test_url_fields_is_iterable_posive(self):
+    def test_patch_includes_query_attribute_negative(self):
+        with self.assertRaises(AssertionError) as ex:
+            class MyEndpoint8(Endpoint):
+                serializer = ConcreteSerializer
+                config = {
+                    'patch': {}
+                }
+        self.assertIn('`patch` method config must include', ex.exception.args[0])
+
+    def test_url_fields_is_iterable_positive(self):
         class MyEndpoint8(Endpoint):
             serializer = ConcreteSerializer
             config = {'post': {KW_CONFIG_URL_FIELDS: ('foo',)}}

@@ -27,10 +27,10 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         return self.validate_only(**attrs)
 
     def create(self, validated_data):
-        return self.do_create()
+        return self.do_create(**validated_data)
 
     def update(self, instance, validated_data):
-        return self.do_update(instance)
+        return self.do_update(instance, **validated_data)
 
     def delete(self):
         assert self.instance is not None, (

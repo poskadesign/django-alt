@@ -9,9 +9,10 @@ from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
 from rest_framework.utils.serializer_helpers import ReturnList
 
-from django_alt.utils.shortcuts import invalid
+from django_alt.utils.shortcuts import invalid, make_error
 from experimental.contexts import RequestContext
 from experimental.dotdict import ddict
+from experimental.exceptions import EndpointError
 from experimental.serializers import ValidatedSerializer
 
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
@@ -40,17 +41,23 @@ class ViewPrototype:
             invalid(current_param, str(e))
 
     @staticmethod
-    def defuse_response(responder, context):
+    def defuse_response(responder, get_context, **kwargs):
+        context = None
         try:
-            return responder(context)
+            context = get_context()
+            return responder(context, **kwargs)
+        except EndpointError as e:
+            return e.status_code
         except drf_ValidationError as e:
             return e.detail, status.HTTP_400_BAD_REQUEST
         except django_ValidationError as e:
             return e.message_dict, status.HTTP_400_BAD_REQUEST
         except PermissionError:
-            return status.HTTP_401_UNAUTHORIZED if context.request.user.is_anonymous else status.HTTP_403_FORBIDDEN
+            if context is not None and context.request.user.is_anonymous:
+                return status.HTTP_401_UNAUTHORIZED
+            return status.HTTP_403_FORBIDDEN
         except (Http404, ObjectDoesNotExist) as e:
-            return Response(', '.join(e.args), status.HTTP_404_NOT_FOUND)
+            return make_error(None, ', '.join(e.args)), status.HTTP_404_NOT_FOUND
 
     @staticmethod
     def respond(endpoint_self: Type['Endpoint'], request, *args, **kwargs):
@@ -72,14 +79,17 @@ class ViewPrototype:
             except KeyError as ex:
                 pass
 
-        queryset = None
-        if KW_CONFIG_QUERYSET in config:
-            queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
-            if KW_CONFIG_FILTERS in config and len(request.query_params):
-                queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+        def get_context():
+            # TODO check for multiple filters!
+            queryset = None
+            if KW_CONFIG_QUERYSET in config:
+                queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
+                if KW_CONFIG_FILTERS in config and len(request.query_params):
+                    queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+            return RequestContext(request, queryset=queryset)
 
-        context = RequestContext(request, queryset=queryset, permission_test=None)
-        result = ViewPrototype.defuse_response(getattr(endpoint_self, 'on_' + method), context)
+        responder = getattr(endpoint_self, 'on_' + method)
+        result = ViewPrototype.defuse_response(responder, get_context, **kwargs)
 
         try:
             if isinstance(result, int):
@@ -176,10 +186,16 @@ class MetaEndpoint(type):
                     'Allowed methods are `{}`.'
                 ).format(clsname, method_name, _HTTP_METHODS)
 
+                if method_name == 'patch':
+                    assert KW_CONFIG_QUERYSET in method_config, (
+                        'Endpoint `patch` method config must include the `{}` attribute.\n'
+                        'Offending endpoint: `{}`'
+                    ).format(KW_CONFIG_QUERYSET, clsname)
+
                 method_config.setdefault(KW_CONFIG_ALLOW_MANY, True)
 
                 if KW_CONFIG_QUERYSET in method_config:
-                    assert callable(method_config['query']), (
+                    assert callable(method_config[KW_CONFIG_QUERYSET]), (
                         '`{}` field in endpoint `config` must be a callable accepting '
                         'parameters: `model` and `**url` in endpoint `{}`'
                     ).format(KW_CONFIG_QUERYSET, clsname)
@@ -243,7 +259,7 @@ class Endpoint(metaclass=MetaEndpoint):
         return partial(ViewPrototype.respond, cls())
 
     @classmethod
-    def make_serializer(cls, context: RequestContext, data=empty, many=None):
+    def make_serializer(cls, context: RequestContext, data=empty, many=None, **kwargs):
         """
         a DRY shortcut for quickly instantiating an assigned serializer.
         :param context: a `RequestContext` object to extract the queryset from
@@ -252,11 +268,13 @@ class Endpoint(metaclass=MetaEndpoint):
         :return: serializer instance
         """
         extra_kwargs = dict(context=context) if issubclass(cls.serializer, ValidatedSerializer) else {}
+        extra_kwargs.update(kwargs)
         if context.queryset is None:
             return cls.serializer(data=data,
                                   many=context.data_has_many if many is None else many,
                                   **extra_kwargs)
         return cls.serializer(instance=context.queryset,
+                              data=data,
                               many=context.queryset_has_many if many is None else many,
                               **extra_kwargs)
 
@@ -271,3 +289,12 @@ class Endpoint(metaclass=MetaEndpoint):
         allow_many = self.config.post.allow_many
         serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
         return ValidatedSerializer.validate_and_save(serializer), 201
+
+    def on_patch(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+        if context.queryset is None:
+            raise EndpointError(status.HTTP_404_NOT_FOUND)
+
+        allow_many = self.config.patch.allow_many
+        serializer = self.make_serializer(context, context.data,
+                                          context.data_has_many if allow_many else False, partial=True)
+        return ValidatedSerializer.validate_and_save(serializer), 200
