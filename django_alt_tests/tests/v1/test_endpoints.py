@@ -336,6 +336,80 @@ class EndpointBaseViewLogicTests(TestCase):
         self.assertEqual(ModelA.objects.first().field_2, 1)
         self.assertEqual(ModelA.objects.first().id, 1)
 
+    """
+        DELETE handlers
+    """
+
+    def test_default_delete_query_returns_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda *args, **kwargs: None
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE'))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_default_delete_query_raises_no_data_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE'))
+        self.assertEqual(resp.status_code, 404)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['ModelA matching query does not exist.']})
+
+    def test_default_delete_query_raises_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE', data={'field_2': 5}))
+        self.assertEqual(resp.status_code, 404)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['ModelA matching query does not exist.']})
+
+    def test_default_delete_none_and_data_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        count = ModelA.objects.all().count()
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, {'id': None, 'field_2': 1, 'field_1': 'a'})
+        self.assertEqual(ModelA.objects.all().count(), count - 1)
+        self.assertEqual(ModelA.objects.first().id, 2)
+
+    def test_default_delete_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        count = ModelA.objects.all().count()
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE', data={'field_1': 'updated'}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, {'id': None, 'field_2': 1, 'field_1': 'a'})
+        self.assertEqual(ModelA.objects.all().count(), count - 1)
+        self.assertEqual(ModelA.objects.first().id, 2)
+
 
 class EndpointDefinitionLogicTests(TestCase):
     def test_empty_definition_negative(self):

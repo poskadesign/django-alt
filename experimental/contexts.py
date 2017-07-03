@@ -6,9 +6,11 @@ class RequestContext:
     Encapsulates data that is necessary to handle an `Endpoint` request
     """
 
-    def __init__(self, request, *, queryset):
+    def __init__(self, request, *, queryset, url_args, url_kwargs):
         self.request = request
         self.queryset = queryset
+        self.url_args = url_args
+        self.url_kwargs = url_kwargs
 
     @property
     def queryset_has_many(self):

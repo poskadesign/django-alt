@@ -41,11 +41,11 @@ class ViewPrototype:
             invalid(current_param, str(e))
 
     @staticmethod
-    def defuse_response(responder, get_context, **kwargs):
+    def defuse_response(responder, get_context):
         context = None
         try:
             context = get_context()
-            return responder(context, **kwargs)
+            return responder(context)
         except EndpointError as e:
             return e.status_code
         except drf_ValidationError as e:
@@ -86,10 +86,10 @@ class ViewPrototype:
                 queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
                 if KW_CONFIG_FILTERS in config and len(request.query_params):
                     queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
-            return RequestContext(request, queryset=queryset)
+            return RequestContext(request, queryset=queryset, url_args=args, url_kwargs=kwargs)
 
         responder = getattr(endpoint_self, 'on_' + method)
-        result = ViewPrototype.defuse_response(responder, get_context, **kwargs)
+        result = ViewPrototype.defuse_response(responder, get_context)
 
         try:
             if isinstance(result, int):
@@ -259,7 +259,7 @@ class Endpoint(metaclass=MetaEndpoint):
         return partial(ViewPrototype.respond, cls())
 
     @classmethod
-    def make_serializer(cls, context: RequestContext, data=empty, many=None, **kwargs):
+    def make_serializer(cls, context: RequestContext, data=empty, many=None, **kwargs) -> ValidatedSerializer:
         """
         a DRY shortcut for quickly instantiating an assigned serializer.
         :param context: a `RequestContext` object to extract the queryset from
@@ -282,15 +282,15 @@ class Endpoint(metaclass=MetaEndpoint):
     Default view handler implementations
     """
 
-    def on_get(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+    def on_get(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
         return self.make_serializer(context).data
 
-    def on_post(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+    def on_post(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
         allow_many = self.config.post.allow_many
         serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
         return ValidatedSerializer.validate_and_save(serializer), 201
 
-    def on_patch(self, context: RequestContext, **url) -> Union[Response, int, dict, Tuple[dict, int]]:
+    def on_patch(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
         if context.queryset is None:
             raise EndpointError(status.HTTP_404_NOT_FOUND)
 
@@ -298,3 +298,11 @@ class Endpoint(metaclass=MetaEndpoint):
         serializer = self.make_serializer(context, context.data,
                                           context.data_has_many if allow_many else False, partial=True)
         return ValidatedSerializer.validate_and_save(serializer), 200
+
+    def on_delete(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
+        if context.queryset is None:
+            raise EndpointError(status.HTTP_404_NOT_FOUND)
+
+        serializer = self.make_serializer(context)
+        serializer.delete()
+        return serializer.data
