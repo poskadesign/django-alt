@@ -93,13 +93,13 @@ class Validator(BaseLifecycleHooks):
     FIELD_VALIDATOR_PREFIX = 'field_'
     FIELD_READ_PREP_PREFIX = 'read_'
 
-    def __init__(self, attrs, *, model=None, **context):
+    def __init__(self, attrs, *, model=None, context=None):
         """
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
         :param [context]: any data that gets passed as serializer kwargs
         """
         self.model = model
-        self.context = ddict(context)
+        self.context = context
         self._attrs = ddict(attrs)
 
     @property

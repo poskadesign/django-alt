@@ -32,9 +32,9 @@ class ValidatedListSerializer(serializers.ListSerializer):
 
 
 class ValidatedSerializer(serializers.Serializer, ValidatedManager):
-    def __init__(self, *args, model_class, validator_class, **kwargs):
+    def __init__(self, *args, model_class, validator_class, context=None, **kwargs):
         super().__init__(*args, **kwargs)
-        ValidatedManager.__init__(self, model_class=model_class, validator_class=validator_class, **kwargs)
+        ValidatedManager.__init__(self, model_class=model_class, validator_class=validator_class, context=context, **kwargs)
 
     @staticmethod
     def validate_and_save(serializer: serializers.Serializer, **kwargs):

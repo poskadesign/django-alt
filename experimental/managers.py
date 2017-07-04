@@ -1,18 +1,20 @@
 from django.db.models import Model
 from typing import Type
 
+from experimental.contexts import RequestContext
 from experimental.validators import Validator
 
 
 class ValidatedManager:
-    def __init__(self, model_class: Type[Model], validator_class: Type[Validator], **context):
+    def __init__(self, model_class: Type[Model],
+                 validator_class: Type[Validator], context: Type[RequestContext] = None, **kwargs):
         self.context = context
         self.model_class = model_class
         self.validator_class = validator_class
         self.validator = None
 
     def make_validator(self, **attrs):
-        self.validator = self.validator_class(attrs, model=self.model_class, **self.context)
+        self.validator = self.validator_class(attrs, model=self.model_class, context=self.context)
         return self.validator
 
     def validate_only(self, **attrs):
