@@ -42,7 +42,7 @@ class BaseLifecycleHooks:
         pass
 
     @abstractmethod
-    def will_delete(self, queryset: Type[QuerySet]):
+    def will_delete(self, queryset: Type[Model]):
         """
         Called before a queryset is deleted
         :param queryset: items to be deleted

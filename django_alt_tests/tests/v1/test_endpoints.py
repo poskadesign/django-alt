@@ -336,8 +336,50 @@ class EndpointBaseViewLogicTests(TestCase):
         self.assertEqual(ModelA.objects.first().field_2, 1)
         self.assertEqual(ModelA.objects.first().id, 1)
 
+    def test_default_patch_many_data_not_list_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.all()
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH', data={'field_1': 'updated'}))
+        self.assertDictEqual(resp.data, {'non_field_errors': ['Expected a list of items but got type "dict".']})
+
+    def test_default_patch_many_data_list_not_implemented_handler_negative(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.all()
+                }
+            }
+
+        with self.assertRaises(NotImplementedError) as ex:
+            ConcreteEndpoint.as_view()(self.mock_request('PATCH', data=[{'field_1': 'updated'}]))
+        self.assertEqual(str(ex.exception),
+                         'Serializers with many=True do not support multiple update by default, only multiple create. '
+                         'For updates it is unclear how to deal with insertions and deletions. If you need to support '
+                         'multiple update, use a `ListSerializer` class and override `.update()` so you can specify '
+                         'the behavior exactly.')
+
+    def test_default_patch_data_is_a_list_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'patch': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PATCH', data=[{'field_1': 'updated'}]))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['Invalid data. Expected a dictionary, but got list.']})
+
     """
-        DELETE handlers
+    DELETE handlers
     """
 
     def test_default_delete_query_returns_none_handler_positive(self):
@@ -409,6 +451,185 @@ class EndpointBaseViewLogicTests(TestCase):
         self.assertDictEqual(resp.data, {'id': None, 'field_2': 1, 'field_1': 'a'})
         self.assertEqual(ModelA.objects.all().count(), count - 1)
         self.assertEqual(ModelA.objects.first().id, 2)
+
+    def test_default_delete_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'delete': {
+                    'query': lambda model, **url: ModelA.objects.all()
+                }
+            }
+
+        count = ModelA.objects.all().count()
+        assert count > 0
+        resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE', data={'field_1': 'updated'}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data,
+                         [{'id': None, 'field_2': 1, 'field_1': 'a'}, {'id': None, 'field_2': 2, 'field_1': 'b'}])
+        self.assertEqual(ModelA.objects.all().count(), 0)
+
+    """
+    PUT handlers
+    """
+
+    def test_default_put_query_returns_none_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda *args, **kwargs: None
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+
+    def test_default_put_query_raises_no_data_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                    # PUT endpoint works like POST if an object is not found
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+
+    def test_default_put_query_raises_incomplete_data_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'x'}))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'field_2': ['This field is required.']})
+
+    def test_default_put_query_acts_as_post_queryset_raises_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        self.assertEqual(ModelA.objects.count(), 2)
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'x', 'field_2': 5}))
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, {'field_1': 'x', 'field_2': 5, 'id': 3})
+        self.assertEqual(ModelA.objects.count(), 3)
+        self.assertEqual(ModelA.objects.last().id, 3)
+        self.assertEqual(ModelA.objects.last().field_1, 'x')
+        self.assertEqual(ModelA.objects.last().field_2, 5)
+
+    def test_default_put_query_acts_as_post_queryset_empty_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.filter(field_1='nonexistent')
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'x', 'field_2': 5}))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'non_field_errors': ['Expected a list of items but got type "dict".']})
+
+    def test_default_put_query_acts_as_post_queryset_raises_data_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        self.assertEqual(ModelA.objects.count(), 2)
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data=[{'field_1': 'x', 'field_2': 5}, {'field_1': 'y', 'field_2': 6}]))
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data, [{'id': 3, 'field_1': 'x', 'field_2': 5}, {'id': 4, 'field_1': 'y', 'field_2': 6}])
+        self.assertEqual(ModelA.objects.count(), 4)
+        self.assertEqual(ModelA.objects.all()[2].id, 3)
+        self.assertEqual(ModelA.objects.all()[2].field_1, 'x')
+        self.assertEqual(ModelA.objects.all()[2].field_2, 5)
+        self.assertEqual(ModelA.objects.all()[3].id, 4)
+        self.assertEqual(ModelA.objects.all()[3].field_1, 'y')
+        self.assertEqual(ModelA.objects.all()[3].field_2, 6)
+
+    def test_default_put_query_acts_as_post_many_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.get(field_1='nonexistent')
+                }
+            }
+
+        self.assertEqual(ModelA.objects.count(), 2)
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'x', 'field_2': 5}))
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, {'field_1': 'x', 'field_2': 5, 'id': 3})
+        self.assertEqual(ModelA.objects.count(), 3)
+        self.assertEqual(ModelA.objects.last().id, 3)
+        self.assertEqual(ModelA.objects.last().field_1, 'x')
+        self.assertEqual(ModelA.objects.last().field_2, 5)
+
+    def test_default_put_acts_as_patch_disallow_partial_update_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'y'}))
+        self.assertEqual(resp.status_code, 400)
+        self.assertDictEqual(resp.data, {'field_2': ['This field is required.']})
+
+    def test_default_put_acts_as_patch_handler_positive(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.first()
+                }
+            }
+
+        self.assertEqual(ModelA.objects.count(), 2)
+        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data={'field_1': 'y', 'field_2': 1337}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, {'field_1': 'y', 'field_2': 1337, 'id': 1})
+        self.assertEqual(ModelA.objects.count(), 2)
+        self.assertEqual(ModelA.objects.first().id, 1)
+        self.assertEqual(ModelA.objects.first().field_1, 'y')
+        self.assertEqual(ModelA.objects.first().field_2, 1337)
+
+    def test_default_put_acts_as_patch_many_not_implemented_handler_negative(self):
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'put': {
+                    'query': lambda model, **url: ModelA.objects.all()
+                }
+            }
+
+        with self.assertRaises(NotImplementedError) as ex:
+            ConcreteEndpoint.as_view()(self.mock_request('PUT', data=[{'field_1': 'y', 'field_2': 1337}]))
+        self.assertEqual(str(ex.exception), 'Serializers with many=True do not support multiple update by default, '
+                                            'only multiple create. For updates it is unclear how to deal with '
+                                            'insertions and deletions. If you need to support multiple update, '
+                                            'use a `ListSerializer` class and override `.update()` so you can specify '
+                                            'the behavior exactly.')
 
 
 class EndpointDefinitionLogicTests(TestCase):

@@ -67,6 +67,16 @@ class ValidatedManager:
         self.validator.did_update(instance)
         return instance
 
+    def _do_delete_pre(self, queryset, **attrs):
+        if self.validator is None:
+            self.make_validator(**attrs)
+
+        self.validator.will_delete(queryset)
+
+    def _do_delete_post(self, queryset, **attrs):
+        self.validator.did_delete(queryset)
+        return queryset
+
     def do_delete(self, queryset, **attrs):
         """
         Validates given attribute dict and calls delete on given queryset.
@@ -74,10 +84,7 @@ class ValidatedManager:
         :param attrs: extra attributes to pass to the validation engine
         :return: deleted instance(s)
         """
-        if self.validator is None:
-            self.make_validator(**attrs)
-
-        self.validator.will_delete(queryset)
+        self._do_delete_pre(queryset, **attrs)
         queryset.delete()
-        self.validator.did_delete(queryset)
+        self._do_delete_post(queryset, **attrs)
         return queryset

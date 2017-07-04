@@ -3,6 +3,34 @@ from rest_framework import serializers
 from experimental.managers import ValidatedManager
 
 
+class ValidatedListSerializer(serializers.ListSerializer):
+    """
+    Overridden default `ListSerializer` class to support multiple delete.
+    """
+    def delete(self):
+        assert self.instance is not None, (
+            'Instances were not passed to `{}` constructor\n'
+            'but `delete` was called.'
+            'Did you forget to pass the queryset when constructing the serializer?'
+        ).format(self.__class__.__qualname__)
+
+        result = list(self.instance)
+        for instance in result:
+            self.child._do_delete_pre(instance)
+
+        self.instance.delete()
+        self.instance = None
+
+        def remove_pk(i):
+            i.pk = None
+            return i
+
+        self._validated_data = [
+            self.child._do_delete_post(remove_pk(instance)) for instance in result
+        ]
+        return self.validated_data
+
+
 class ValidatedSerializer(serializers.Serializer, ValidatedManager):
     def __init__(self, *args, model_class, validator_class, **kwargs):
         super().__init__(*args, **kwargs)
@@ -22,6 +50,13 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         serializer.is_valid(raise_exception=True)
         serializer.save(**kwargs)
         return serializer.data
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        list_serializer = getattr(cls.Meta, 'list_serializer_class', None)
+        if list_serializer is None:
+            setattr(cls.Meta, 'list_serializer_class', ValidatedSerializer.Meta.list_serializer_class)
+        return super().many_init(*args, **kwargs)
 
     def validate(self, attrs):
         return self.validate_only(**attrs)
@@ -49,6 +84,9 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         self.validator.prepare_read_fields(instance)
         self.validator.will_read(instance)
         return self.validator.attrs
+
+    class Meta:
+        list_serializer_class = ValidatedListSerializer
 
 
 class ValidatedModelSerializer(ValidatedSerializer, serializers.ModelSerializer):

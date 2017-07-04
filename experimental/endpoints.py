@@ -7,11 +7,10 @@ from rest_framework import status
 from rest_framework.fields import empty
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
-from rest_framework.utils.serializer_helpers import ReturnList
 
 from django_alt.utils.shortcuts import invalid, make_error
 from experimental.contexts import RequestContext
-from experimental.dotdict import ddict
+from experimental.dotdict import ddict, undefined
 from experimental.exceptions import EndpointError
 from experimental.serializers import ValidatedSerializer
 
@@ -82,10 +81,15 @@ class ViewPrototype:
         def get_context():
             # TODO check for multiple filters!
             queryset = None
-            if KW_CONFIG_QUERYSET in config:
-                queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
-                if KW_CONFIG_FILTERS in config and len(request.query_params):
-                    queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+            try:
+                if KW_CONFIG_QUERYSET in config:
+                    queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
+                    if KW_CONFIG_FILTERS in config and len(request.query_params):
+                        queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+            except ObjectDoesNotExist:
+                if method != 'put':
+                    raise
+                queryset = None
             return RequestContext(request, queryset=queryset, url_args=args, url_kwargs=kwargs)
 
         responder = getattr(endpoint_self, 'on_' + method)
@@ -278,6 +282,10 @@ class Endpoint(metaclass=MetaEndpoint):
                               many=context.queryset_has_many if many is None else many,
                               **extra_kwargs)
 
+    def _create_and_serialize(self, context, allow_many=undefined):
+        serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
+        return ValidatedSerializer.validate_and_save(serializer)
+
     """
     Default view handler implementations
     """
@@ -286,17 +294,20 @@ class Endpoint(metaclass=MetaEndpoint):
         return self.make_serializer(context).data
 
     def on_post(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
-        allow_many = self.config.post.allow_many
-        serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
-        return ValidatedSerializer.validate_and_save(serializer), 201
+        return self._create_and_serialize(context, self.config.post.allow_many), 201
+
+    def on_put(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
+        if context.queryset is None:
+            return self._create_and_serialize(context, self.config.put.allow_many), 201
+
+        serializer = self.make_serializer(context, context.data)
+        return ValidatedSerializer.validate_and_save(serializer), 200
 
     def on_patch(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
         if context.queryset is None:
             raise EndpointError(status.HTTP_404_NOT_FOUND)
 
-        allow_many = self.config.patch.allow_many
-        serializer = self.make_serializer(context, context.data,
-                                          context.data_has_many if allow_many else False, partial=True)
+        serializer = self.make_serializer(context, context.data, partial=True)
         return ValidatedSerializer.validate_and_save(serializer), 200
 
     def on_delete(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
