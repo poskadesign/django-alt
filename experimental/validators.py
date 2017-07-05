@@ -22,7 +22,6 @@ class BaseLifecycleHooks:
         Called when a new instance is created from attrs.
         Use this for
         - placing validation logic that should be solely executed on record creation
-        :return: modified attrs
         """
         pass
 
@@ -37,15 +36,21 @@ class BaseLifecycleHooks:
         Use this for
         - placing validation logic that should be solely executed on record update
         :param instance: existing instance that will be updated
-        :return: modified attrs
         """
         pass
 
     @abstractmethod
-    def will_delete(self, queryset: Type[Model]):
+    def will_delete(self, instance: Type[Model]):
         """
         Called before a queryset is deleted
-        :param queryset: items to be deleted
+        :param instance: items to be deleted
+        """
+        pass
+
+    @abstractmethod
+    def will_create_or_update(self):
+        """
+        Called before an instance is created from or updated with attrs.
         """
         pass
 
@@ -59,7 +64,6 @@ class BaseLifecycleHooks:
         """
         Called after a model instance is created
         :param instance: the created model instance
-        :return: None
         """
         pass
 
@@ -68,16 +72,22 @@ class BaseLifecycleHooks:
         """
         Called after a model instance is updated
         :param instance: the updated model instance
-        :return: None
         """
         pass
 
     @abstractmethod
-    def did_delete(self, queryset: Type[QuerySet]):
+    def did_delete(self, instance: Type[Model]):
         """
         Called after a model instance is deleted
-        :param queryset: queryset that was deleted
-        :return: None
+        :param instance: queryset that was deleted
+        """
+        pass
+
+    @abstractmethod
+    def did_create_or_update(self, instance: Type[Model]):
+        """
+        Called after a model instance is created or an existing instance updated
+        :param instance: the created or updated model instance
         """
         pass
 

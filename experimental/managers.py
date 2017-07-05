@@ -45,11 +45,13 @@ class ValidatedManager:
             self.validator.attrs = attrs
 
         self.validator.will_create()
+        self.validator.will_create_or_update()
         self.validator.base_db()
 
         instance = self.model_class.objects.create(**self.validator.attrs)
 
         self.validator.did_create(instance)
+        self.validator.did_create_or_update(instance)
         return instance
 
     def do_update(self, instance, **attrs):
@@ -68,6 +70,7 @@ class ValidatedManager:
             self.validator.attrs = attrs
 
         self.validator.will_update(instance)
+        self.validator.will_create_or_update()
         self.validator.base_db()
 
         for k, v in self.validator.attrs.items():
@@ -75,6 +78,7 @@ class ValidatedManager:
         instance.save()
 
         self.validator.did_update(instance)
+        self.validator.did_create_or_update(instance)
         return instance
 
     def _do_delete_pre(self, queryset, **attrs):

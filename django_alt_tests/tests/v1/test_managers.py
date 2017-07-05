@@ -37,6 +37,9 @@ class SampleManager(ValidatedManager):
 
 
 class ValidatedManagerTestCase(TestCase):
+    def assert_called(self, mock, what):
+        return next(fun for fun in mock.mock_calls if what in str(fun))
+
     @mock.patch('tests.v1.test_managers.SampleValidator')
     def test_create(self, mock):
         manager = SampleManager(ModelA, SampleValidator)
@@ -45,19 +48,20 @@ class ValidatedManagerTestCase(TestCase):
 
         instance = manager.do_create(**attrs)
 
-        assert_called = lambda what: next(fun for fun in mock.mock_calls if what in str(fun))
-
-        assert_called('clean')
-        assert_called('base')
-        assert_called('base_db')
-        assert_called('validate_fields')
-        assert_called('validate_checks')
-        assert_called('clean_fields')
-        will_create_ = assert_called('will_create')
-        did_create_ = assert_called('did_create')
+        self.assert_called(mock, 'clean')
+        self.assert_called(mock, 'base')
+        self.assert_called(mock, 'base_db')
+        self.assert_called(mock, 'validate_fields')
+        self.assert_called(mock, 'validate_checks')
+        self.assert_called(mock, 'clean_fields')
+        will_create_ = self.assert_called(mock, 'will_create')
+        self.assert_called(mock, 'will_create_or_update')
+        did_create_ = self.assert_called(mock, 'did_create')
+        did_create_or_update = self.assert_called(mock, 'did_create_or_update')
 
         self.assertEqual(will_create_[1], ())
         self.assertEqual(did_create_[1], (instance,))
+        self.assertEqual(did_create_or_update[1], (instance,))
 
         self.assertEqual(ModelA.objects.count(), 1)
         self.assertEqual(ModelA.objects.first().field_2, 42)
@@ -81,6 +85,21 @@ class ValidatedManagerTestCase(TestCase):
         type(mock.return_value).attrs = PropertyMock(return_value=attrs)
 
         instance = manager.do_update(instance, **attrs)
+
+        self.assert_called(mock, 'clean')
+        self.assert_called(mock, 'base')
+        self.assert_called(mock, 'base_db')
+        self.assert_called(mock, 'validate_fields')
+        self.assert_called(mock, 'validate_checks')
+        self.assert_called(mock, 'clean_fields')
+        will_update_ = self.assert_called(mock, 'will_update')
+        self.assert_called(mock, 'will_create_or_update')
+        did_update_ = self.assert_called(mock, 'did_update')
+        did_create_or_update = self.assert_called(mock, 'did_create_or_update')
+
+        self.assertEqual(will_update_[1], (instance,))
+        self.assertEqual(did_update_[1], (instance,))
+        self.assertEqual(did_create_or_update[1], (instance,))
 
         will_update_ = next(fun for fun in mock.mock_calls if 'will_update' in str(fun))
         did_update_ = next(fun for fun in mock.mock_calls if 'did_update' in str(fun))
