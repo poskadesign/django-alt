@@ -17,11 +17,14 @@ from experimental.serializers import ValidatedSerializer
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 
 # todo prepend _
-KW_CONFIG_FILTERS = 'filters'
-KW_CONFIG_QUERYSET = 'query'
-KW_CONFIG_URL_FIELDS = 'fields_from_url'
-KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
-KW_CONFIG_ALLOW_MANY = 'allow_many'
+_KW_CONFIG_FILTERS = 'filters'
+_KW_CONFIG_QUERYSET = 'query'
+_KW_CONFIG_URL_FIELDS = 'fields_from_url'
+_KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
+_KW_CONFIG_ALLOW_MANY = 'allow_many'
+_KW_ALL = {_KW_CONFIG_FILTERS, _KW_CONFIG_QUERYSET,
+           _KW_CONFIG_URL_FIELDS, _KW_CONFIG_URL_DONT_NORMALIZE,
+           _KW_CONFIG_ALLOW_MANY}
 
 
 class ViewPrototype:
@@ -66,12 +69,12 @@ class ViewPrototype:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         # TODO solve for HTTP HEAD
-        if KW_CONFIG_URL_DONT_NORMALIZE not in config:
+        if _KW_CONFIG_URL_DONT_NORMALIZE not in config:
             pass
             # TODO
             # url = _normalize_url(**kwargs)
 
-        if KW_CONFIG_URL_FIELDS in config:
+        if _KW_CONFIG_URL_FIELDS in config:
             # TODO
             try:
                 pass
@@ -82,10 +85,10 @@ class ViewPrototype:
             # TODO check for multiple filters!
             queryset = None
             try:
-                if KW_CONFIG_QUERYSET in config:
-                    queryset = config[KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
-                    if KW_CONFIG_FILTERS in config and len(request.query_params):
-                        queryset = ViewPrototype.apply_filters(queryset, config[KW_CONFIG_FILTERS], request.query_params)
+                if _KW_CONFIG_QUERYSET in config:
+                    queryset = config[_KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
+                    if _KW_CONFIG_FILTERS in config and len(request.query_params):
+                        queryset = ViewPrototype.apply_filters(queryset, config[_KW_CONFIG_FILTERS], request.query_params)
             except ObjectDoesNotExist:
                 if method != 'put':
                     raise
@@ -190,43 +193,47 @@ class MetaEndpoint(type):
                     'Allowed methods are `{}`.'
                 ).format(clsname, method_name, _HTTP_METHODS)
 
+                assert len(set(method_config.keys()).difference(_KW_ALL)) == 0, (
+                    '`{}` {} config contains unknown keys: `{}`.'
+                ).format(clsname, method_name, ', '.join(set(method_config.keys()).difference(_KW_ALL)))
+
                 if method_name == 'patch':
-                    assert KW_CONFIG_QUERYSET in method_config, (
+                    assert _KW_CONFIG_QUERYSET in method_config, (
                         'Endpoint `patch` method config must include the `{}` attribute.\n'
                         'Offending endpoint: `{}`'
-                    ).format(KW_CONFIG_QUERYSET, clsname)
+                    ).format(_KW_CONFIG_QUERYSET, clsname)
 
-                method_config.setdefault(KW_CONFIG_ALLOW_MANY, True)
+                method_config.setdefault(_KW_CONFIG_ALLOW_MANY, True)
 
-                if KW_CONFIG_QUERYSET in method_config:
-                    assert callable(method_config[KW_CONFIG_QUERYSET]), (
+                if _KW_CONFIG_QUERYSET in method_config:
+                    assert callable(method_config[_KW_CONFIG_QUERYSET]), (
                         '`{}` field in endpoint `config` must be a callable accepting '
                         'parameters: `model` and `**url` in endpoint `{}`'
-                    ).format(KW_CONFIG_QUERYSET, clsname)
+                    ).format(_KW_CONFIG_QUERYSET, clsname)
 
-                    if KW_CONFIG_FILTERS in method_config:
-                        assert isinstance(method_config[KW_CONFIG_FILTERS], dict), (
+                    if _KW_CONFIG_FILTERS in method_config:
+                        assert isinstance(method_config[_KW_CONFIG_FILTERS], dict), (
                             '`{}` field must be of type `dict`, containing pairs of `filter_name`, '
                             '`filter_func(queryset, value)` in endpoint `{}`'
-                        ).format(KW_CONFIG_FILTERS, clsname)
+                        ).format(_KW_CONFIG_FILTERS, clsname)
 
                 elif method_name == 'delete':
                     raise AssertionError(('`config` for `delete` must include '
-                                          '`{}` field for endpoint `{}`').format(KW_CONFIG_QUERYSET, clsname))
+                                          '`{}` field for endpoint `{}`').format(_KW_CONFIG_QUERYSET, clsname))
 
-                elif KW_CONFIG_FILTERS in method_config:
+                elif _KW_CONFIG_FILTERS in method_config:
                     raise AssertionError('`{}` cannot be used without `{}` in endpoint `{}`'
-                                         .format(KW_CONFIG_FILTERS, KW_CONFIG_QUERYSET, clsname))
+                                         .format(_KW_CONFIG_FILTERS, _KW_CONFIG_QUERYSET, clsname))
 
-                if KW_CONFIG_URL_FIELDS in method_config:
-                    assert hasattr(method_config[KW_CONFIG_URL_FIELDS], '__iter__') \
-                           and not isinstance(method_config[KW_CONFIG_URL_FIELDS], str), (
+                if _KW_CONFIG_URL_FIELDS in method_config:
+                    assert hasattr(method_config[_KW_CONFIG_URL_FIELDS], '__iter__') \
+                           and not isinstance(method_config[_KW_CONFIG_URL_FIELDS], str), (
                         '`{}` config field must be an iterable in endpoint `{}`'
-                    ).format(KW_CONFIG_URL_FIELDS, clsname)
+                    ).format(_KW_CONFIG_URL_FIELDS, clsname)
 
-                if KW_CONFIG_URL_DONT_NORMALIZE in method_config:
-                    if KW_CONFIG_URL_DONT_NORMALIZE is not True:
-                        del method_config[KW_CONFIG_URL_DONT_NORMALIZE]
+                if _KW_CONFIG_URL_DONT_NORMALIZE in method_config:
+                    if _KW_CONFIG_URL_DONT_NORMALIZE is not True:
+                        del method_config[_KW_CONFIG_URL_DONT_NORMALIZE]
         return config
 
 

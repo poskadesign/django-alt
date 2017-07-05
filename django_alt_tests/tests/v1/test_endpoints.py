@@ -9,7 +9,7 @@ from rest_framework.serializers import Serializer
 from rest_framework.utils.serializer_helpers import ReturnList
 
 from django_alt_tests.conf.models import ModelA
-from experimental.endpoints import Endpoint, KW_CONFIG_URL_FIELDS, MetaEndpoint
+from experimental.endpoints import Endpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint
 from experimental.serializers import ValidatedSerializer, ValidatedModelSerializer
 from experimental.validators import Validator
 
@@ -669,6 +669,29 @@ class EndpointDefinitionLogicTests(TestCase):
                 }
         self.assertIn('unknown HTTP method `foo`', ex.exception.args[0])
 
+    def test_unknown_method_selector_keys_checking_negative(self):
+        with self.assertRaises(AssertionError) as ex:
+            class MyEndpoint1(Endpoint):
+                serializer = ConcreteSerializer
+                config = {
+                    'get': {
+                        'unknown1': None,
+                    }
+                }
+        self.assertIn('`MyEndpoint1` get config contains unknown keys: `unknown1`.', ex.exception.args[0])
+
+    def test_many_unknown_method_selector_keys_checking_negative(self):
+        with self.assertRaises(AssertionError) as ex:
+            class MyEndpoint1(Endpoint):
+                serializer = ConcreteSerializer
+                config = {
+                    'get': {
+                        'unknown1': None,
+                        'unknown2': None
+                    }
+                }
+        self.assertIn('`MyEndpoint1` get config contains unknown keys: `unknown2, unknown1`.', ex.exception.args[0])
+
     def test_query_is_not_callable_negative(self):
         with self.assertRaises(AssertionError) as ex:
             class MyEndpoint2(Endpoint):
@@ -738,7 +761,7 @@ class EndpointDefinitionLogicTests(TestCase):
                 serializer = ConcreteSerializer
                 config = {
                     'post': {
-                        KW_CONFIG_URL_FIELDS: 'foo'
+                        _KW_CONFIG_URL_FIELDS: 'foo'
                     }
                 }
         self.assertIn('field must be an iterable', ex.exception.args[0])
@@ -755,15 +778,15 @@ class EndpointDefinitionLogicTests(TestCase):
     def test_url_fields_is_iterable_positive(self):
         class MyEndpoint8(Endpoint):
             serializer = ConcreteSerializer
-            config = {'post': {KW_CONFIG_URL_FIELDS: ('foo',)}}
+            config = {'post': {_KW_CONFIG_URL_FIELDS: ('foo',)}}
 
         class MyEndpoint9(Endpoint):
             serializer = ConcreteSerializer
-            config = {'post': {KW_CONFIG_URL_FIELDS: ['foo', ]}}
+            config = {'post': {_KW_CONFIG_URL_FIELDS: ['foo', ]}}
 
         class MyEndpoint10(Endpoint):
             serializer = ConcreteSerializer
-            config = {'post': {KW_CONFIG_URL_FIELDS: {'foo', 'bar'}}}
+            config = {'post': {_KW_CONFIG_URL_FIELDS: {'foo', 'bar'}}}
 
     def test_allow_many_flag_set_to_true_automatically_positive(self):
         class MyEndpoint6(Endpoint):
