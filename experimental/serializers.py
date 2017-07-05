@@ -59,7 +59,8 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         return super().many_init(*args, **kwargs)
 
     def validate(self, attrs):
-        return self.validate_only(**attrs)
+        self.make_validator(attrs, is_create=self.instance is None)
+        return self.validate_only()
 
     def create(self, validated_data):
         return self.do_create(**validated_data)
@@ -78,7 +79,7 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
     def to_representation(self, instance):
         attrs = super().to_representation(instance)
         if self.validator is None:
-            self.make_validator(**attrs)
+            self.make_validator(attrs)
         else:
             self.validator.attrs = attrs
         self.validator.prepare_read_fields(instance)

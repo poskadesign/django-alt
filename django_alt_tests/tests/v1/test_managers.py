@@ -79,6 +79,7 @@ class ValidatedManagerTestCase(TestCase):
         manager = SampleManager(ModelA, SampleValidator)
         attrs = dict(field_2=1337, field_1='ukr')
         type(mock.return_value).attrs = PropertyMock(return_value=attrs)
+
         instance = manager.do_update(instance, **attrs)
 
         will_update_ = next(fun for fun in mock.mock_calls if 'will_update' in str(fun))
@@ -119,3 +120,25 @@ class ValidatedManagerTestCase(TestCase):
         self.assertEqual(will_delete_[1], (instance,))
         self.assertEqual(did_delete_[1], (instance,))
         self.assertEqual(ModelA.objects.count(), 0)
+
+    def test_calling_validate_only_without_a_validator_negative(self):
+        manager = SampleManager(ModelA, SampleValidator)
+        with self.assertRaises(AssertionError) as ex:
+            manager.validate_only()
+
+        self.assertIn('call `make_validator` on `SampleManager` before', ex.exception.args[0])
+
+    def test_create_sets_is_create_flag_on_validator_positive(self):
+        manager = SampleManager(ModelA, SampleValidator)
+        manager.do_create(field_1='a', field_2=1)
+        self.assertTrue(manager.validator.is_create)
+        self.assertFalse(manager.validator.is_update)
+
+    def test_create_sets_is_update_flag_on_validator_positive(self):
+        manager = SampleManager(ModelA, SampleValidator)
+        manager.do_create(field_1='a', field_2=1)
+        self.assertTrue(manager.validator.is_create)
+        self.assertFalse(manager.validator.is_update)
+        manager.do_update(ModelA.objects.first(), field_1='a', field_2=1)
+        self.assertTrue(manager.validator.is_update)
+        self.assertFalse(manager.validator.is_create)

@@ -690,7 +690,9 @@ class EndpointDefinitionLogicTests(TestCase):
                         'unknown2': None
                     }
                 }
-        self.assertIn('`MyEndpoint1` get config contains unknown keys: `unknown2, unknown1`.', ex.exception.args[0])
+        self.assertIn('`MyEndpoint1` get config contains unknown keys:', ex.exception.args[0])
+        self.assertIn('unknown2', ex.exception.args[0])
+        self.assertIn('unknown1', ex.exception.args[0])
 
     def test_query_is_not_callable_negative(self):
         with self.assertRaises(AssertionError) as ex:

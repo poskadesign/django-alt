@@ -13,12 +13,16 @@ class ValidatedManager:
         self.validator_class = validator_class
         self.validator = None
 
-    def make_validator(self, **attrs):
-        self.validator = self.validator_class(attrs, model=self.model_class, context=self.context)
+    def make_validator(self, attrs, **kwargs):
+        kwargs.setdefault('model', self.model_class)
+        kwargs.setdefault('context', self.context)
+        self.validator = self.validator_class(attrs, **kwargs)
         return self.validator
 
-    def validate_only(self, **attrs):
-        self.make_validator(**attrs)
+    def validate_only(self):
+        assert self.validator is not None, (
+            'You have to call `make_validator` on `{}` before explicitly calling `validate_only`.'
+        ).format(self.__class__.__name__)
         self.validator.clean_fields()
         self.validator.clean()
 
@@ -34,8 +38,10 @@ class ValidatedManager:
         :return: created instance
         """
         if self.validator is None:
-            self.validate_only(**attrs)
+            self.make_validator(attrs, is_create=True)
+            self.validate_only()
         elif len(attrs):
+            self.validator._is_create = True
             self.validator.attrs = attrs
 
         self.validator.will_create()
@@ -55,8 +61,10 @@ class ValidatedManager:
         :return: updated instance
         """
         if self.validator is None:
-            self.validate_only(**attrs)
+            self.make_validator(attrs, is_create=False)
+            self.validate_only()
         elif len(attrs):
+            self.validator._is_create = False
             self.validator.attrs = attrs
 
         self.validator.will_update(instance)
@@ -71,7 +79,7 @@ class ValidatedManager:
 
     def _do_delete_pre(self, queryset, **attrs):
         if self.validator is None:
-            self.make_validator(**attrs)
+            self.make_validator(attrs)
 
         self.validator.will_delete(queryset)
 

@@ -93,17 +93,39 @@ class Validator(BaseLifecycleHooks):
     FIELD_VALIDATOR_PREFIX = 'field_'
     FIELD_READ_PREP_PREFIX = 'read_'
 
-    def __init__(self, attrs, *, model=None, context=None):
+    def __init__(self, attrs, *, model=None, context=None, **kwargs):
         """
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
         :param [context]: any data that gets passed as serializer kwargs
         """
+        self._attrs = ddict(attrs)
         self.model = model
         self.context = context
-        self._attrs = ddict(attrs)
+
+        self._is_create = kwargs.get('is_create', None)
 
     @property
-    def attrs(self):
+    def is_create(self) -> bool:
+        """
+        Returns whether the currently validated operation is a part of resource creation.
+        :return: is creation validated
+        """
+        assert self._is_create is not None, (
+            '`is_create` flag was not passed when initializing the Validator\n'
+            'but `is_create` or `is_update` accessor was invoked. Offending validator: `{}`.'
+        ).format(self.__class__.__name__)
+        return self._is_create
+
+    @property
+    def is_update(self) -> bool:
+        """
+        Returns whether the currently validated operation is a part of existing resource update.
+        :return: is update validated
+        """
+        return not self.is_create
+
+    @property
+    def attrs(self) -> ddict:
         return self._attrs
 
     @attrs.setter

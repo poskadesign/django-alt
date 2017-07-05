@@ -195,7 +195,7 @@ class MetaEndpoint(type):
 
                 assert len(set(method_config.keys()).difference(_KW_ALL)) == 0, (
                     '`{}` {} config contains unknown keys: `{}`.'
-                ).format(clsname, method_name, ', '.join(set(method_config.keys()).difference(_KW_ALL)))
+                ).format(clsname, method_name, ', '.join(sorted(set(method_config.keys()).difference(_KW_ALL))))
 
                 if method_name == 'patch':
                     assert _KW_CONFIG_QUERYSET in method_config, (
