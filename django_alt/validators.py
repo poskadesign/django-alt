@@ -1,9 +1,9 @@
 from abc import abstractmethod
-
-from django.db.models import Model, QuerySet
 from typing import Type
 
-from experimental.dotdict import ddict
+from django.db.models import Model
+
+from django_alt.dotdict import ddict
 
 
 class BaseLifecycleHooks:

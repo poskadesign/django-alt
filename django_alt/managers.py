@@ -1,84 +1,105 @@
-from django_alt.abstract.validators import Validator
-from django_alt.utils.shortcuts import coal
+from typing import Type
+
+from django.db.models import Model
+from django_alt.validators import Validator
+
+from django_alt.contexts import RequestContext
 
 
 class ValidatedManager:
-    """
-    Relates validator to ObjectManager, allowing to easily use validator
-    without needing a serializer
-    """
+    def __init__(self, model_class: Type[Model],
+                 validator_class: Type[Validator], context: Type[RequestContext] = None, **kwargs):
+        self.context = context
+        self.model_class = model_class
+        self.validator_class = validator_class
+        self.validator = None
 
-    def __init__(self, model, validator_class: Validator, no_save=False, **context):
-        self.model = model
-        self.no_save = no_save
-        self.validator = validator_class(model=model, serializer=None, **context)
+    def make_validator(self, attrs, **kwargs):
+        kwargs.setdefault('model', self.model_class)
+        kwargs.setdefault('context', self.context)
+        self.validator = self.validator_class(attrs, **kwargs)
+        return self.validator
 
-    def validation_sequence(self, attrs: dict):
-        self.validator.clean_fields(attrs, attrs.keys())
+    def validate_only(self):
+        assert self.validator is not None, (
+            'You have to call `make_validator` on `{}` before explicitly calling `validate_only`.'
+        ).format(self.__class__.__name__)
+        self.validator.clean_fields()
+        self.validator.clean()
 
-        attrs = coal(self.validator.clean(attrs), attrs)
-        attrs = coal(self.validator.base(attrs), attrs)
+        self.validator.base()
+        self.validator.validate_fields()
+        self.validator.validate_checks()
+        return self.validator.attrs
 
-        self.validator.validate_fields(attrs, attrs.keys())
-        self.validator.validate_checks(attrs)
-
-    def create(self, **attrs):
+    def do_create(self, **attrs):
         """
-        Validates and creates a model instance
-        :param attrs: attributes to create the instance from.
-        :return: the newly created instance
+        Validates given attribute dict and creates an object from it.
+        :param attrs: attributes to create the object from
+        :return: created instance
         """
-        self.validation_sequence(attrs)
+        if self.validator is None:
+            self.make_validator(attrs, is_create=True)
+            self.validate_only()
+        elif len(attrs):
+            self.validator._is_create = True
+            self.validator.attrs = attrs
 
-        attrs = coal(self.validator.will_create(attrs), attrs)
-        attrs = coal(self.validator.base_db(attrs), attrs)
+        self.validator.will_create()
+        self.validator.will_create_or_update()
+        self.validator.base_db()
 
-        if not self.no_save:
-            instance = self.model.objects.create(**attrs)
-            self.validator.did_create(instance, attrs)
-            return instance
+        instance = self.model_class.objects.create(**self.validator.attrs)
 
-        return attrs
+        self.validator.did_create(instance)
+        self.validator.did_create_or_update(instance)
+        return instance
 
-    def update(self, instance, **attrs):
+    def do_update(self, instance, **attrs):
         """
-        Validates and creates a model instance
-        :param attrs: attributes to create the instance from.
-        :return: the newly created instance
+        Validates given attribute dict and replaces fields of
+        an existing object with its contents.
+        :param instance: instance to update
+        :param attrs: attributes to update the object with
+        :return: updated instance
         """
-        self.validation_sequence(attrs)
+        if self.validator is None:
+            self.make_validator(attrs, is_create=False)
+            self.validate_only()
+        elif len(attrs):
+            self.validator._is_create = False
+            self.validator.attrs = attrs
 
-        attrs = coal(self.validator.will_update(instance, attrs), attrs)
-        attrs = coal(self.validator.base_db(attrs), attrs)
+        self.validator.will_update(instance)
+        self.validator.will_create_or_update()
+        self.validator.base_db()
 
-        if not self.no_save:
-            for k, v in attrs.items():
-                setattr(instance, k, v)
-            instance.save()
-            self.validator.did_update(instance, attrs)
-            return instance
+        for k, v in self.validator.attrs.items():
+            setattr(instance, k, v)
+        instance.save()
 
-        return attrs
+        self.validator.did_update(instance)
+        self.validator.did_create_or_update(instance)
+        return instance
 
-    def delete(self, queryset):
+    def _do_delete_pre(self, queryset, **attrs):
+        if self.validator is None:
+            self.make_validator(attrs)
+
         self.validator.will_delete(queryset)
+
+    def _do_delete_post(self, queryset, **attrs):
+        self.validator.did_delete(queryset)
+        return queryset
+
+    def do_delete(self, queryset, **attrs):
+        """
+        Validates given attribute dict and calls delete on given queryset.
+        :param queryset: object instance(s) to delete
+        :param attrs: extra attributes to pass to the validation engine
+        :return: deleted instance(s)
+        """
+        self._do_delete_pre(queryset, **attrs)
         queryset.delete()
-        self.validator.did_delete()
-
-    def create_many(self, list_of_attrs):
-        """
-        TBA
-        :param list_of_attrs:
-        :return:
-        """
-        instances = []
-        list_of_attrs = list(list_of_attrs)
-        for attrs in list_of_attrs:
-            self.validation_sequence(attrs)
-            instances.append(self.model(**attrs))
-
-        self.model.objects.bulk_create(instances)
-        for instance, attrs in zip(instances, list_of_attrs):
-            self.validator.did_create(instance, attrs)
-
-        return instances
+        self._do_delete_post(queryset, **attrs)
+        return queryset

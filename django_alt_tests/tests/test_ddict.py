@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from experimental.dotdict import ddict, undefined
+from django_alt.dotdict import ddict, undefined
 
 
 class DdictTests(TestCase):

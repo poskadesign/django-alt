@@ -1,12 +1,11 @@
-from functools import partial
 from unittest import mock
-from unittest.mock import PropertyMock, MagicMock
+from unittest.mock import PropertyMock
 
 from django.test import TestCase
+from django_alt.managers import ValidatedManager
 
+from django_alt.validators import Validator
 from django_alt_tests.conf.models import ModelA
-from experimental.managers import ValidatedManager
-from experimental.validators import Validator
 
 
 class SampleValidator(Validator):
@@ -40,7 +39,7 @@ class ValidatedManagerTestCase(TestCase):
     def assert_called(self, mock, what):
         return next(fun for fun in mock.mock_calls if what in str(fun))
 
-    @mock.patch('tests.v1.test_managers.SampleValidator')
+    @mock.patch('tests.test_managers.SampleValidator')
     def test_create(self, mock):
         manager = SampleManager(ModelA, SampleValidator)
         attrs = dict(field_2=42, field_1='abc')
@@ -77,7 +76,7 @@ class ValidatedManagerTestCase(TestCase):
                                                             'field_field_2',
                                                             'check_x'})) == 0
 
-    @mock.patch('tests.v1.test_managers.SampleValidator')
+    @mock.patch('tests.test_managers.SampleValidator')
     def test_update(self, mock):
         instance = ModelA.objects.create(field_2=42, field_1='ltu')
         manager = SampleManager(ModelA, SampleValidator)
@@ -122,7 +121,7 @@ class ValidatedManagerTestCase(TestCase):
                                                             'field_field_2',
                                                             'check_x'})) == 0
 
-    @mock.patch('tests.v1.test_managers.SampleValidator')
+    @mock.patch('tests.test_managers.SampleValidator')
     def test_delete(self, mock):
         instance = ModelA.objects.create(field_2=42, field_1='ltu')
         manager = SampleManager(ModelA, SampleValidator)
