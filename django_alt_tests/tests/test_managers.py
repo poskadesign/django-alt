@@ -13,6 +13,9 @@ class SampleValidator(Validator):
         self.calls = []
         super().__init__(attrs=attrs, model=model, **context)
 
+    def default_field_1(self):
+        return 'default'
+
     def clean_field_1(self, v):
         self.calls.append('clean_field_1')
         return v
@@ -41,7 +44,7 @@ class ValidatedManagerTestCase(TestCase):
 
     @mock.patch('tests.test_managers.SampleValidator')
     def test_create(self, mock):
-        manager = SampleManager(ModelA, SampleValidator)
+        manager = SampleManager(ModelA, mock)
         attrs = dict(field_2=42, field_1='abc')
         type(mock.return_value).attrs = PropertyMock(return_value=attrs)
 
@@ -52,7 +55,7 @@ class ValidatedManagerTestCase(TestCase):
         self.assert_called(mock, 'base_db')
         self.assert_called(mock, 'validate_fields')
         self.assert_called(mock, 'validate_checks')
-        self.assert_called(mock, 'clean_fields')
+        self.assert_called(mock, 'clean_and_default_fields')
         will_create_ = self.assert_called(mock, 'will_create')
         self.assert_called(mock, 'will_create_or_update')
         did_create_ = self.assert_called(mock, 'did_create')
@@ -79,7 +82,7 @@ class ValidatedManagerTestCase(TestCase):
     @mock.patch('tests.test_managers.SampleValidator')
     def test_update(self, mock):
         instance = ModelA.objects.create(field_2=42, field_1='ltu')
-        manager = SampleManager(ModelA, SampleValidator)
+        manager = SampleManager(ModelA, mock)
         attrs = dict(field_2=1337, field_1='ukr')
         type(mock.return_value).attrs = PropertyMock(return_value=attrs)
 
@@ -90,7 +93,7 @@ class ValidatedManagerTestCase(TestCase):
         self.assert_called(mock, 'base_db')
         self.assert_called(mock, 'validate_fields')
         self.assert_called(mock, 'validate_checks')
-        self.assert_called(mock, 'clean_fields')
+        self.assert_called(mock, 'clean_and_default_fields')
         will_update_ = self.assert_called(mock, 'will_update')
         self.assert_called(mock, 'will_create_or_update')
         did_update_ = self.assert_called(mock, 'did_update')
@@ -124,7 +127,7 @@ class ValidatedManagerTestCase(TestCase):
     @mock.patch('tests.test_managers.SampleValidator')
     def test_delete(self, mock):
         instance = ModelA.objects.create(field_2=42, field_1='ltu')
-        manager = SampleManager(ModelA, SampleValidator)
+        manager = SampleManager(ModelA, mock)
         self.assertEqual(ModelA.objects.count(), 1)
 
         attrs = dict(arbitrary='field')
@@ -160,3 +163,8 @@ class ValidatedManagerTestCase(TestCase):
         manager.do_update(ModelA.objects.first(), field_1='a', field_2=1)
         self.assertTrue(manager.validator.is_update)
         self.assertFalse(manager.validator.is_create)
+
+    def test_create_sets_default_field_positive(self):
+        manager = SampleManager(ModelA, SampleValidator)
+        obj = manager.do_create(field_2=1)
+        self.assertEqual(obj.field_1, 'default')

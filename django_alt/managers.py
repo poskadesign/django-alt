@@ -24,7 +24,7 @@ class ValidatedManager:
         assert self.validator is not None, (
             'You have to call `make_validator` on `{}` before explicitly calling `validate_only`.'
         ).format(self.__class__.__name__)
-        self.validator.clean_fields()
+        self.validator.clean_and_default_fields()
         self.validator.clean()
 
         self.validator.base()

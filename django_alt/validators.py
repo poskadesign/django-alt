@@ -100,6 +100,7 @@ class Validator(BaseLifecycleHooks):
     ATTR_CHECKS_PREFIX = 'check_'
 
     FIELD_CLEAN_PREFIX = 'clean_'
+    FIELD_DEFAULT_PREFIX = 'default_'
     FIELD_VALIDATOR_PREFIX = 'field_'
     FIELD_READ_PREP_PREFIX = 'read_'
 
@@ -166,7 +167,7 @@ class Validator(BaseLifecycleHooks):
             if hasattr(self, name) and callable(getattr(self, name)):
                 getattr(self, name)(self.attrs[field])
 
-    def clean_fields(self):
+    def clean_and_default_fields(self):
         """
         If subclass defines functions named clean_<field_name>
         where field_name corresponds to a attribute present in the attrs
@@ -178,6 +179,12 @@ class Validator(BaseLifecycleHooks):
             name = ''.join((self.FIELD_CLEAN_PREFIX, field))
             if hasattr(self, name) and callable(getattr(self, name)):
                 self.attrs[field] = getattr(self, name)(self.attrs[field])
+
+        if self._is_create is not None and self._is_create is True:
+            for default_func in (f for f in dir(self) if f.startswith(self.FIELD_DEFAULT_PREFIX) and callable(getattr(self, f))):
+                field = default_func[len(self.FIELD_DEFAULT_PREFIX):]
+                if field not in self.attrs:
+                    self.attrs[field] = getattr(self, default_func)()
 
     def prepare_read_fields(self, instance):
         """
@@ -201,7 +208,7 @@ class Validator(BaseLifecycleHooks):
         Use this for
         - value cleaning (lowercasing, normalization, etc.)
         - setting or generating default dependent values (like slugs)
-        :return: modified attrs
+        :return: None
         """
         pass
 
@@ -211,7 +218,7 @@ class Validator(BaseLifecycleHooks):
         Executed before create and update methods.
         Use this for
         - raising validation errors independent from create or update
-        :return: modified attrs
+        :return: None
         """
         pass
 
@@ -223,6 +230,6 @@ class Validator(BaseLifecycleHooks):
         Use this for
         - validation that requires database access
         - validation logic that is more expensive
-        :return: modified attrs
+        :return: None
         """
         pass
