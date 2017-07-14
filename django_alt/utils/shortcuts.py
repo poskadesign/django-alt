@@ -130,7 +130,7 @@ def if_any_in(keys, container, func_true=None):
 def first_defined(*args):
     """
     Finds the first argument that is not None
-    :param args: arguments to check for "defineness"
+    :param args: arguments to check for "definedness"
     :return:
     """
     for arg in args:
@@ -152,25 +152,39 @@ def prohibited(key: str, container: dict = None):
 def prohibited_any(keys: tuple, container: dict = None):
     """
     shortcut for raising a validation error when any of the given fields exist in the container.
+    :param keys: keys that cannot be in the container
     :param container: container to search
-    :param key: existing key
     :raises: serializer.ValidationError
     """
-    intersection = set(keys).intersection(container.keys())
-    if container and len(intersection) > 0:
-        invalid(intersection, 'This field cannot be present.')
+    if container:
+        intersection = set(keys).intersection(container.keys())
+        if len(intersection) > 0:
+            invalid(intersection, 'This field cannot be present.')
 
 
 def required(key: str, container: dict = None):
     """
     shortcut for raising a validation error about a missing required field.
-    :param container: container to search
     :param key: missing key
+    :param container: container to search
     :raises: serializer.ValidationError
     """
     if container and key in container:
         return container[key]
     invalid(key, 'This field is required.')
+
+
+def required_all(keys: list, container: dict = None):
+    """
+    shortcut for raising a validation error if any of the keys are missing in the container.
+    :param keys: keys that are required in the container
+    :param container: container to search
+    :raises: serializer.ValidationError
+    """
+    if container:
+        difference = set(keys).difference(container.keys())
+        if len(difference):
+            invalid(difference, 'This field is required.')
 
 
 def try_cast(typ, value):
