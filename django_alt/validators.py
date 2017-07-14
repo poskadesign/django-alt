@@ -6,9 +6,37 @@ from django.db.models import Model
 from django_alt.dotdict import ddict
 
 
-class BaseLifecycleHooks:
+class Phasers:
     """
-    Provides an interface to handle object lifecycle.
+    Provides a standard interface for encapsulating code called during a specific validation phase.
+    Inspired by Perl 6 phasers
+    """
+
+    @abstractmethod
+    def pre(self):
+        """
+        Function that is called before a validation sequence begins.
+        Use this for
+        - placing preconditional validation logic (`required` statements, etc.)
+        Still, you should avoid using heavy validation logic here.
+        """
+        pass
+
+    @abstractmethod
+    def post(self):
+        """
+        Function that is called last after a full (successful) validation sequence.
+        Use this for
+        - placing extra cleanup code
+        - code that should be executed after a validation sequence regardless whether an object
+          was created/read/updated or deleted.
+        """
+        pass
+
+
+class LifecycleHooks:
+    """
+    Provides a standard interface for handling object lifecycle.
     """
 
     """
@@ -92,7 +120,7 @@ class BaseLifecycleHooks:
         pass
 
 
-class Validator(BaseLifecycleHooks):
+class Validator(LifecycleHooks, Phasers):
     """
     Abstract class that defines the basic lifecycle hooks and definition
     principles for its subclasses
@@ -149,8 +177,10 @@ class Validator(BaseLifecycleHooks):
         executes such functions with attrs dict as the parameter.
         All functions are called in alphabetical order.
         """
+
         def is_attr_action(n):
             return n.startswith(self.ATTR_CHECKS_PREFIX) and callable(getattr(self, n))
+
         for name in (name for name in dir(self) if is_attr_action(name)):
             getattr(self, name)()
 
@@ -181,7 +211,8 @@ class Validator(BaseLifecycleHooks):
                 self.attrs[field] = getattr(self, name)(self.attrs[field])
 
         if self._is_create is not None and self._is_create is True:
-            for default_func in (f for f in dir(self) if f.startswith(self.FIELD_DEFAULT_PREFIX) and callable(getattr(self, f))):
+            for default_func in (f for f in dir(self) if
+                                 f.startswith(self.FIELD_DEFAULT_PREFIX) and callable(getattr(self, f))):
                 field = default_func[len(self.FIELD_DEFAULT_PREFIX):]
                 if field not in self.attrs:
                     self.attrs[field] = getattr(self, default_func)()

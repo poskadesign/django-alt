@@ -33,4 +33,3 @@ class ValidatorsMiscTests(TestCase):
     def test_is_update_accessed_positive(self):
         validator = Validator(dict(a=1), is_create=True)
         self.assertFalse(validator.is_update)
-

@@ -50,6 +50,7 @@ class ValidatedManagerTestCase(TestCase):
 
         instance = manager.do_create(**attrs)
 
+        self.assert_called(mock, 'pre')
         self.assert_called(mock, 'clean')
         self.assert_called(mock, 'base')
         self.assert_called(mock, 'base_db')
@@ -60,6 +61,7 @@ class ValidatedManagerTestCase(TestCase):
         self.assert_called(mock, 'will_create_or_update')
         did_create_ = self.assert_called(mock, 'did_create')
         did_create_or_update = self.assert_called(mock, 'did_create_or_update')
+        self.assert_called(mock, 'post')
 
         self.assertEqual(will_create_[1], ())
         self.assertEqual(did_create_[1], (instance,))
@@ -88,6 +90,7 @@ class ValidatedManagerTestCase(TestCase):
 
         instance = manager.do_update(instance, **attrs)
 
+        self.assert_called(mock, 'pre')
         self.assert_called(mock, 'clean')
         self.assert_called(mock, 'base')
         self.assert_called(mock, 'base_db')
@@ -98,6 +101,7 @@ class ValidatedManagerTestCase(TestCase):
         self.assert_called(mock, 'will_create_or_update')
         did_update_ = self.assert_called(mock, 'did_update')
         did_create_or_update = self.assert_called(mock, 'did_create_or_update')
+        self.assert_called(mock, 'post')
 
         self.assertEqual(will_update_[1], (instance,))
         self.assertEqual(did_update_[1], (instance,))
@@ -135,8 +139,10 @@ class ValidatedManagerTestCase(TestCase):
 
         instance = manager.do_delete(instance, **attrs)
 
+        self.assert_called(mock, 'pre')
         will_delete_ = next(fun for fun in mock.mock_calls if 'will_delete' in str(fun))
         did_delete_ = next(fun for fun in mock.mock_calls if 'did_delete' in str(fun))
+        self.assert_called(mock, 'post')
 
         self.assertEqual(will_delete_[1], (instance,))
         self.assertEqual(did_delete_[1], (instance,))

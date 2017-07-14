@@ -24,6 +24,8 @@ class ValidatedManager:
         assert self.validator is not None, (
             'You have to call `make_validator` on `{}` before explicitly calling `validate_only`.'
         ).format(self.__class__.__name__)
+        self.validator.pre()
+
         self.validator.clean_and_default_fields()
         self.validator.clean()
 
@@ -53,6 +55,8 @@ class ValidatedManager:
 
         self.validator.did_create(instance)
         self.validator.did_create_or_update(instance)
+        self.validator.post()
+
         return instance
 
     def do_update(self, instance, **attrs):
@@ -80,16 +84,20 @@ class ValidatedManager:
 
         self.validator.did_update(instance)
         self.validator.did_create_or_update(instance)
+        self.validator.post()
+
         return instance
 
     def _do_delete_pre(self, queryset, **attrs):
         if self.validator is None:
             self.make_validator(attrs)
+            self.validator.pre()
 
         self.validator.will_delete(queryset)
 
     def _do_delete_post(self, queryset, **attrs):
         self.validator.did_delete(queryset)
+        self.validator.post()
         return queryset
 
     def do_delete(self, queryset, **attrs):
