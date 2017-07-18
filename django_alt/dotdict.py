@@ -43,3 +43,10 @@ class ddict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+    def __add__(self, other):
+        if isinstance(other, dict):
+            result = self.copy()
+            result.update(other)
+            return result
+        raise TypeError('You can only add two ddict or one ddict one dict instances')
+

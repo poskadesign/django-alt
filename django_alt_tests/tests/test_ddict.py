@@ -102,6 +102,20 @@ class DdictTests(TestCase):
         self.assertNotEqual(a, b)
         self.assertNotEqual(a, b)
 
+    def test_add_operator(self):
+        a, b = ddict(b=2, a=1, c=3), dict(a=2, b=3)
+        with self.assertRaises(TypeError):
+            c = a + 1
+
+        c = a + b
+        self.assertDictEqual(c, dict(a=2, b=3, c=3))
+
+        b2 = dict(z=4)
+        c = a + b2
+        self.assertDictEqual(a, dict(a=1, b=2, c=3))
+        self.assertDictEqual(b2, dict(z=4))
+        self.assertDictEqual(c, dict(a=1, b=2, c=3, z=4))
+
 
 class UndefinedTests(TestCase):
     def test_undefined_is_undefined(self):
