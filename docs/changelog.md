@@ -1,5 +1,11 @@
 # django-alt version changelog
 
+### 0.74
+ - Fixed field name retrieval when a `source` parameter is used in a serializer
+ field definition.
+ - Shortcut `required_all` backported from dev-1.0 branch.
+ - `dot_dict` module backported from dev-1.0 branch.
+
 ### 0.73
  - `view_prototype` now doesn't return a 404 when a `QuerySet.get` fails with 
  `ObjectDoesNotExist` with HTTP PUT, instead creating a new object from request data.

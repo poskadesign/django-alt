@@ -173,6 +173,19 @@ def required(key: str, container: dict = None):
     invalid(key, 'This field is required.')
 
 
+def required_all(keys: list, container: dict = None):
+    """
+    shortcut for raising a validation error if any of the keys are missing in the container.
+    :param keys: keys that are required in the container
+    :param container: container to search
+    :raises: serializer.ValidationError
+    """
+    if container:
+        difference = set(keys).difference(container.keys())
+        if len(difference):
+            invalid(difference, 'This field is required.')
+
+
 def try_cast(typ, value):
     """
     Attempts to cast value to a given type.

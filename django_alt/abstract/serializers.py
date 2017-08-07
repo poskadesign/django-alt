@@ -77,7 +77,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         :param attrs: a dictionary containing input attributes to validate
         :return: transformed (if necessary) attributes from input
         """
-        fields = self.fields.fields.keys()
+        fields = [v.source if v.source else k for k, v in self.get_fields().items()]
 
         self.validator.clean_fields(attrs, fields)
 
