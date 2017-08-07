@@ -14,13 +14,13 @@ class UtilsShortcutsTests(TestCase):
         self.assertEqual(make_error(None, 'v1'), {'non_field_errors': ['v1.']})
 
     def test_invalid(self):
-        with self.assertRaises(validation_error_class) as ex:
+        with self.assertRaises(ValidationError) as ex:
             invalid('k', 'v')
         self.assertEqual(ex.exception.detail, {'k': ['v.']})
 
     def test_invalid_if(self):
         invalid_if(False, 'k', 'v')
-        with self.assertRaises(validation_error_class) as ex:
+        with self.assertRaises(ValidationError) as ex:
             invalid_if(True, 'k', 'v')
         self.assertEqual(ex.exception.detail, {'k': ['v.']})
 

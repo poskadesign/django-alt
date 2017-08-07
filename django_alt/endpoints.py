@@ -1,4 +1,5 @@
-from functools import partial
+import json
+from functools import partial, reduce
 from typing import Union, Type, Tuple
 
 from django.core.exceptions import ValidationError as django_ValidationError, ImproperlyConfigured, ObjectDoesNotExist
@@ -12,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
 
 from django_alt.contexts import RequestContext
-from django_alt.utils.shortcuts import invalid, make_error
+from django_alt.utils.shortcuts import invalid, make_error, first_defined, try_cast, as_bool
 
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 
@@ -20,14 +21,22 @@ _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 _KW_CONFIG_FILTERS = 'filters'
 _KW_CONFIG_QUERYSET = 'query'
 _KW_CONFIG_URL_FIELDS = 'fields_from_url'
-_KW_CONFIG_URL_DONT_NORMALIZE = 'no_url_param_casting'
+_KW_CONFIG_DO_NOT_NORMALIZE_DATA = 'no_data_casting'
 _KW_CONFIG_ALLOW_MANY = 'allow_many'
 _KW_ALL = {_KW_CONFIG_FILTERS, _KW_CONFIG_QUERYSET,
-           _KW_CONFIG_URL_FIELDS, _KW_CONFIG_URL_DONT_NORMALIZE,
+           _KW_CONFIG_URL_FIELDS, _KW_CONFIG_DO_NOT_NORMALIZE_DATA,
            _KW_CONFIG_ALLOW_MANY}
 
 
 class ViewPrototype:
+    @staticmethod
+    def normalize_type(value):
+        return first_defined(
+            try_cast(int, value),
+            try_cast(float, value),
+            as_bool(value),
+            value)
+
     @staticmethod
     def apply_filters(qs, filters, query_params):
         current_param = None
@@ -63,37 +72,55 @@ class ViewPrototype:
 
     @staticmethod
     def respond(endpoint_self: Type['Endpoint'], request, *args, **kwargs):
+        # TODO solve for HTTP HEAD
         method = request.method.lower()
         config = endpoint_self.config.get(method, None)
         if config is None:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        # TODO solve for HTTP HEAD
-        if _KW_CONFIG_URL_DONT_NORMALIZE not in config:
-            pass
-            # TODO
-            # url = _normalize_url(**kwargs)
+        data = request.data
+        if not config.get(_KW_CONFIG_DO_NOT_NORMALIZE_DATA, False):
+            args = [ViewPrototype.normalize_type(value) for value in args]
+            kwargs = {k: ViewPrototype.normalize_type(v) for k, v in kwargs.items()}
+            query_params = {k: ViewPrototype.normalize_type(v) for k, v in request.GET.items()}
+        else:
+            query_params = {k: v for k, v in request.GET.items()}
 
         if _KW_CONFIG_URL_FIELDS in config:
-            # TODO
+            # TODO test this behaviour
             try:
-                pass
-            except KeyError as ex:
-                pass
+                updated_fragment = {k: kwargs[k] for k in config[_KW_CONFIG_URL_FIELDS]}
+                if isinstance(data, list):
+                    for member in data:
+                        assert isinstance(member, dict), (
+                            'An endpoint that accepts a nested list of items\n'
+                            'cannot have `{}` config set.\n'
+                            'Offending endpoint: `{}`, method: `{}`.\n'
+                            '`request.data` dump: \n`{}`'
+                        ).format(_KW_CONFIG_URL_FIELDS, endpoint_self.__class__.__name__, request.method, data)
+                        member.update(updated_fragment)
+                else:
+                    data.update(updated_fragment)
+            except KeyError:
+                raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
+                                      '`{0}` dump: {2}').format(_KW_CONFIG_URL_FIELDS, endpoint_self.__name__,
+                                                                json.dumps(config[_KW_CONFIG_URL_FIELDS])))
 
         def get_context():
-            # TODO check for multiple filters!
             queryset = None
             try:
                 if _KW_CONFIG_QUERYSET in config:
                     queryset = config[_KW_CONFIG_QUERYSET](endpoint_self.model, **kwargs)
-                    if _KW_CONFIG_FILTERS in config and len(request.query_params):
-                        queryset = ViewPrototype.apply_filters(queryset, config[_KW_CONFIG_FILTERS], request.query_params)
+                    if _KW_CONFIG_FILTERS in config and len(query_params):
+                        queryset = ViewPrototype.apply_filters(queryset, config[_KW_CONFIG_FILTERS], query_params)
             except ObjectDoesNotExist:
                 if method != 'put':
+                    # put is allowed not to have a queryset
+                    # an object is then created instead
                     raise
                 queryset = None
-            return RequestContext(request, queryset=queryset, url_args=args, url_kwargs=kwargs)
+            return RequestContext(request, data=data, queryset=queryset, url_args=args,
+                                  url_kwargs=kwargs, query_params=query_params)
 
         responder = getattr(endpoint_self, 'on_' + method)
         result = ViewPrototype.defuse_response(responder, get_context)
@@ -231,9 +258,9 @@ class MetaEndpoint(type):
                         '`{}` config field must be an iterable in endpoint `{}`'
                     ).format(_KW_CONFIG_URL_FIELDS, clsname)
 
-                if _KW_CONFIG_URL_DONT_NORMALIZE in method_config:
-                    if _KW_CONFIG_URL_DONT_NORMALIZE is not True:
-                        del method_config[_KW_CONFIG_URL_DONT_NORMALIZE]
+                if _KW_CONFIG_DO_NOT_NORMALIZE_DATA in method_config:
+                    if _KW_CONFIG_DO_NOT_NORMALIZE_DATA is not True:
+                        del method_config[_KW_CONFIG_DO_NOT_NORMALIZE_DATA]
         return config
 
 

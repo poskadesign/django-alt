@@ -2,7 +2,7 @@ import inspect
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import TestCase
-from django_alt.endpoints import Endpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint
+from django_alt.endpoints import Endpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
 from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
@@ -51,11 +51,12 @@ class EndpointBaseViewLogicTests(TestCase):
         self.EBase.on_get = method
         return self.EBase.as_view()(self.mock_request('GET', is_anonymous))
 
-    def mock_request(self, method, is_anonymous=False, data=None):
+    def mock_request(self, method, is_anonymous=False, data=None, query_params=None):
         return type('RequestMock', tuple(), dict(
             method=method,
             user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous)),
-            data=data
+            data=data,
+            GET=query_params or {}
         ))
 
     def test_should_return_405_for_nonexistent_method_positive(self):
@@ -631,6 +632,45 @@ class EndpointBaseViewLogicTests(TestCase):
                                             'use a `ListSerializer` class and override `.update()` so you can specify '
                                             'the behavior exactly.')
 
+    """
+    GET handlers with filtering
+    """
+
+    def test_default_get_with_single_filter_positive(self):
+        called = None
+        def first_filter(objects, value):
+            nonlocal called
+            called = value
+            return objects.first()
+
+        def last_filter(objects, value):
+            nonlocal called
+            called = value
+            return objects.last()
+
+        class ConcreteEndpoint(Endpoint):
+            serializer = ConcreteModelSerializer
+            config = {
+                'get': {
+                    'query': lambda model, **url: ModelA.objects.all(),
+                    'filters': {
+                        'first': first_filter,
+                        'last': last_filter
+                    }
+                }
+            }
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}]))
+        self.assertEqual(resp.data, [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'first': 'param'}))
+        self.assertDictEqual(resp.data, {'id': 1, 'field_2': 1, 'field_1': 'a'})
+        self.assertEqual(called, 'param')
+
+        resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'last': 'param2'}))
+        self.assertDictEqual(resp.data, {'id': 2, 'field_2': 2, 'field_1': 'b'})
+        self.assertEqual(called, 'param2')
+
 
 class EndpointDefinitionLogicTests(TestCase):
     def test_empty_definition_negative(self):
@@ -914,3 +954,15 @@ class EndpointMiscTests(TestCase):
     def test_partial_application_correctness_returned_by_as_view_positive(self):
         ep = ConcreteEndpoint.as_view()
         self.assertFalse(inspect.isclass(ep.args[0]))
+
+    def test_view_prototype_type_normalization(self):
+        func = ViewPrototype.normalize_type
+        self.assertEqual(func('1'), 1)
+        self.assertEqual(func('1.5'), 1.5)
+        self.assertEqual(func('1.5A'), '1.5A')
+        self.assertEqual(func('none'), 'none')
+        self.assertEqual(func('true'), True)
+        self.assertEqual(func('tRUe'), True)
+        self.assertEqual(func('false'), False)
+        self.assertEqual(func('False'), False)
+        self.assertEqual(func('Falses'), 'Falses')

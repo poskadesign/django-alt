@@ -9,7 +9,7 @@ from django_alt.dotdict import ddict
 class Phasers:
     """
     Provides a standard interface for encapsulating code called during a specific validation phase.
-    Inspired by Perl 6 phasers
+    Inspired by Perl 6 phasers.
     """
 
     @abstractmethod
@@ -41,7 +41,7 @@ class LifecycleHooks:
 
     """
     Precursor lifecycle hooks.
-    Invoked before a database operation
+    Invoked before a database operation.
     """
 
     @abstractmethod
@@ -84,7 +84,7 @@ class LifecycleHooks:
 
     """
     Postcursor lifecycle hooks.
-    Invoked after a database operation
+    Invoked after a database operation.
     """
 
     @abstractmethod
@@ -118,7 +118,7 @@ class LifecycleHooks:
         :param instance: the created or updated model instance
         """
         pass
-
+    
 
 class Validator(LifecycleHooks, Phasers):
     """
@@ -177,11 +177,10 @@ class Validator(LifecycleHooks, Phasers):
         executes such functions with attrs dict as the parameter.
         All functions are called in alphabetical order.
         """
-
-        def is_attr_action(n):
+        def is_check(n):
             return n.startswith(self.ATTR_CHECKS_PREFIX) and callable(getattr(self, n))
 
-        for name in (name for name in dir(self) if is_attr_action(name)):
+        for name in (name for name in dir(self) if is_check(name)):
             getattr(self, name)()
 
     def validate_fields(self):

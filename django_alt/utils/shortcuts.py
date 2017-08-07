@@ -1,9 +1,25 @@
 import collections
+from typing import Union
 
 from django.db.models import QuerySet
 from rest_framework import serializers
 
-validation_error_class = serializers.ValidationError
+ValidationError = serializers.ValidationError
+
+
+def as_bool(string: str) -> Union[bool, None]:
+    """
+    Shortcut for checking if string is actually a representation for bool.
+    This is useful when i.e. passing bool values by query string.
+    :param string: input to check
+    :return: bool value if string matches, None otherwise
+    """
+    lower = string.lower()
+    if lower == 'true':
+        return True
+    elif lower == 'false':
+        return False
+    return None
 
 
 def invalid_if(condition, key_or_list, error_or_list):
@@ -20,7 +36,7 @@ def invalid(key_or_list, error_or_list):
     Shortcut for raising a validation error.
     :raises: serializers.ValidationError
     """
-    raise validation_error_class(make_error(key_or_list, error_or_list))
+    raise ValidationError(make_error(key_or_list, error_or_list))
 
 
 def is_iterable(obj):
