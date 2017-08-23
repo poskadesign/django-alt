@@ -17,7 +17,6 @@ from django_alt.utils.shortcuts import invalid, make_error, first_defined, try_c
 
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 
-# todo prepend _
 _KW_CONFIG_FILTERS = 'filters'
 _KW_CONFIG_QUERYSET = 'query'
 _KW_CONFIG_URL_FIELDS = 'fields_from_url'

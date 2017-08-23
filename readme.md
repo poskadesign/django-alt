@@ -8,7 +8,7 @@ REST endpoint definition in Django and DRF.
 **Development branch**
 
 ### Installation
-**Requirements**: this package depends on `django` and `djangorestframework`.
+**Requirements**: this package depends on `django`, `djangorestframework` and `typing` packages.
 ```
 pip install django-alt
 ```
