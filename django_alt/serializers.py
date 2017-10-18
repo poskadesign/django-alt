@@ -32,9 +32,32 @@ class ValidatedListSerializer(serializers.ListSerializer):
 
 
 class ValidatedSerializer(serializers.Serializer, ValidatedManager):
-    def __init__(self, *args, model_class, validator_class, context=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        ValidatedManager.__init__(self, model_class=model_class, validator_class=validator_class, context=context, **kwargs)
+    def __init__(self, *args, model_class=None, validator_class=None, context=None, **kwargs):
+        self.no_validation = kwargs.pop('no_validation', False)
+        if self.no_validation:
+            super().__init__(*args, **kwargs)
+        else:
+            if self.Meta:
+                if model_class is None:
+                    assert hasattr(self.Meta, 'model'), (
+                        'Missing `model` field in serializer Meta class. '
+                        'Offending serializer: {}').format(self.__class__.__qualname__)
+                    model_class = self.Meta.model
+                if validator_class is None:
+                    assert hasattr(self.Meta, 'validator'), (
+                        'Missing `validator` field in serializer Meta class. '
+                        'Offending serializer: {}').format(self.__class__.__qualname__)
+                    validator_class = self.Meta.validator
+
+            super().__init__(*args, **kwargs)
+            ValidatedManager.__init__(self, model_class=model_class, validator_class=validator_class, context=context, **kwargs)
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        list_serializer = getattr(cls.Meta, 'list_serializer_class', None)
+        if list_serializer is None:
+            setattr(cls.Meta, 'list_serializer_class', ValidatedSerializer.Meta.list_serializer_class)
+        return super().many_init(*args, **kwargs)
 
     @staticmethod
     def validate_and_save(serializer: serializers.Serializer, **kwargs):
@@ -51,13 +74,6 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         serializer.save(**kwargs)
         return serializer.data
 
-    @classmethod
-    def many_init(cls, *args, **kwargs):
-        list_serializer = getattr(cls.Meta, 'list_serializer_class', None)
-        if list_serializer is None:
-            setattr(cls.Meta, 'list_serializer_class', ValidatedSerializer.Meta.list_serializer_class)
-        return super().many_init(*args, **kwargs)
-
     def validate(self, attrs):
         self.make_validator(attrs, is_create=self.instance is None)
         return self.validate_only()
@@ -69,14 +85,11 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         return self.do_update(instance, **validated_data)
 
     def delete(self):
-        assert self.instance is not None, (
-            'An instance was not passed to `{}` constructor\n'
-            'but `delete` was called.'
-            'Did you forget to pass an instance when constructing the serializer?'
-        ).format(self.__class__.__qualname__)
-        return self.do_delete(self.instance)
+        return self.do_delete(self.instance, **self.initial_data)
 
     def to_representation(self, instance):
+        if self.no_validation:
+            return super().to_representation(instance)
         attrs = super().to_representation(instance)
         if self.validator is None:
             self.make_validator(attrs)
@@ -107,12 +120,3 @@ class ValidatedModelSerializer(ValidatedSerializer, serializers.ModelSerializer)
     >>>         # skip creation and return an existing object
     >>>         return MyModel.objects.first()
     """
-
-    def __init__(self, *args, **kwargs):
-        assert hasattr(self.Meta, 'model'), (
-            'Missing `model` field in serializer Meta class. '
-            'Offending serializer: {}').format(self.__class__.__qualname__)
-        assert hasattr(self.Meta, 'validator'), (
-            'Missing `validator` field in serializer Meta class. '
-            'Offending serializer: {}').format(self.__class__.__qualname__)
-        super().__init__(*args, model_class=self.Meta.model, validator_class=self.Meta.validator, **kwargs)

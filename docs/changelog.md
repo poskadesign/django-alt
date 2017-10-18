@@ -1,5 +1,16 @@
 # django-alt version changelog
 
+### 1.0.0b3
+ - added shortcut `copyattrs`
+
+### 1.0.0b2
+ - added `custom` attribute for endpoints that when set, allows not having to define 
+ serializers and models on the endpoint and suppresses other checks.
+ - fixed accessing `request.data` without a fallback in `ViewPrototype.respond`.
+
+### 1.0.0b1
+ - initial 1.0 beta release.
+
 ### 0.73
  - `view_prototype` now doesn't return a 404 when a `QuerySet.get` fails with 
  `ObjectDoesNotExist` with HTTP PUT, instead creating a new object from request data.

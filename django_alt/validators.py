@@ -1,9 +1,12 @@
+import inspect
 from abc import abstractmethod
+from collections import OrderedDict
+
 from typing import Type
 
 from django.db.models import Model
 
-from django_alt.dotdict import ddict
+from django_alt.dotdict import ddict, undefined
 
 
 class Phasers:
@@ -118,7 +121,7 @@ class LifecycleHooks:
         :param instance: the created or updated model instance
         """
         pass
-    
+
 
 class Validator(LifecycleHooks, Phasers):
     """
@@ -149,10 +152,6 @@ class Validator(LifecycleHooks, Phasers):
         Returns whether the currently validated operation is a part of resource creation.
         :return: is creation validated
         """
-        assert self._is_create is not None, (
-            '`is_create` flag was not passed when initializing the Validator\n'
-            'but `is_create` or `is_update` accessor was invoked. Offending validator: `{}`.'
-        ).format(self.__class__.__name__)
         return self._is_create
 
     @property
@@ -161,7 +160,7 @@ class Validator(LifecycleHooks, Phasers):
         Returns whether the currently validated operation is a part of existing resource update.
         :return: is update validated
         """
-        return not self.is_create
+        return (not self.is_create) if self.is_create is not None else None
 
     @property
     def attrs(self) -> ddict:
@@ -169,7 +168,10 @@ class Validator(LifecycleHooks, Phasers):
 
     @attrs.setter
     def attrs(self, value):
-        self._attrs = ddict(value)
+        if not isinstance(value, OrderedDict):
+            self._attrs = ddict(value)
+        else:
+            self._attrs = value
 
     def validate_checks(self):
         """
@@ -177,6 +179,7 @@ class Validator(LifecycleHooks, Phasers):
         executes such functions with attrs dict as the parameter.
         All functions are called in alphabetical order.
         """
+
         def is_check(n):
             return n.startswith(self.ATTR_CHECKS_PREFIX) and callable(getattr(self, n))
 
@@ -226,10 +229,10 @@ class Validator(LifecycleHooks, Phasers):
         that is written to the representation dict.
         :return: None
         """
-        for field in sorted(self.attrs.keys()):
-            name = ''.join((self.FIELD_READ_PREP_PREFIX, field))
-            if hasattr(self, name) and callable(getattr(self, name)):
-                self.attrs[field] = getattr(self, name)(self.attrs[field], instance)
+        read_funcs = ((name, method) for name, method in inspect.getmembers(self, predicate=inspect.ismethod) \
+                      if name.startswith(self.FIELD_READ_PREP_PREFIX))
+        for field, func in read_funcs:
+            self.attrs[field[len(self.FIELD_READ_PREP_PREFIX):]] = func(self.attrs.get(field, undefined), instance)
 
     @abstractmethod
     def clean(self):

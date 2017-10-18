@@ -22,13 +22,27 @@ def as_bool(string: str) -> Union[bool, None]:
     return None
 
 
+def copyattrs(source, destination, *attrs):
+    """
+    Shortcut for getting multiple attributes from a source object and
+    setting them on the destination object.
+    Useful for when you want to set multiple ddict attributes on a class instance.
+    :param source: object that will have getattr called on
+    :param destination: object that will have setattr called on
+    :param attrs: list of attributes to iterate on
+    :return: destination object
+    """
+    for attr in attrs:
+        setattr(destination, attr, getattr(source, attr))
+    return destination
+
+
 def invalid_if(condition, key_or_list, error_or_list):
     """
     Shortcut for raising a validation error if a condition is met.
     :raises: serializers.ValidationError
     """
-    if condition:
-        invalid(key_or_list, error_or_list)
+    return not condition or invalid(key_or_list, error_or_list)
 
 
 def invalid(key_or_list, error_or_list):
@@ -221,9 +235,9 @@ def valid_if(condition, key_or_list, error_or_list):
     Shortcut for raising a validation error if a condition is not met.
     Think about this function as an assertion (i.e. this condition must be met).
     :raises: serializers.ValidationError
+    :returns: the condition variable, if it is truthy
     """
-    if not condition:
-        invalid(key_or_list, error_or_list)
+    return condition or invalid(key_or_list, error_or_list)
 
 
 """

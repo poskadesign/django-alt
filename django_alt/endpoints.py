@@ -1,19 +1,22 @@
 import json
-from functools import partial, reduce
+from functools import partial
+
+from rest_framework.decorators import api_view
 from typing import Union, Type, Tuple
 
 from django.core.exceptions import ValidationError as django_ValidationError, ImproperlyConfigured, ObjectDoesNotExist
 from django.http.response import HttpResponseBase, Http404
-from django_alt.dotdict import ddict, undefined
-from django_alt.exceptions import EndpointError
-from django_alt.serializers import ValidatedSerializer
 from rest_framework import status
 from rest_framework.fields import empty
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, ValidationError as drf_ValidationError
+from rest_framework.views import APIView
 
-from django_alt.contexts import RequestContext
-from django_alt.utils.shortcuts import invalid, make_error, first_defined, try_cast, as_bool
+from .contexts import RequestContext
+from .dotdict import ddict, undefined
+from .exceptions import EndpointError
+from .serializers import ValidatedSerializer
+from .utils.shortcuts import invalid, make_error, first_defined, try_cast, as_bool
 
 _HTTP_METHODS = ('get', 'post', 'patch', 'put', 'delete')
 
@@ -70,6 +73,14 @@ class ViewPrototype:
             return make_error(None, ', '.join(e.args)), status.HTTP_404_NOT_FOUND
 
     @staticmethod
+    def postprocess_response(response):
+        for attr in ('renderer_classes', 'parser_classes', 'authentication_classes',
+                     'throttle_classes', 'permission_classes'):
+            if not hasattr(response, attr):
+                setattr(response, attr, getattr(APIView, attr))
+        return response
+
+    @staticmethod
     def respond(endpoint_self: Type['Endpoint'], request, *args, **kwargs):
         # TODO solve for HTTP HEAD
         method = request.method.lower()
@@ -77,7 +88,7 @@ class ViewPrototype:
         if config is None:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        data = request.data
+        data = getattr(request, 'data', None)
         if not config.get(_KW_CONFIG_DO_NOT_NORMALIZE_DATA, False):
             args = [ViewPrototype.normalize_type(value) for value in args]
             kwargs = {k: ViewPrototype.normalize_type(v) for k, v in kwargs.items()}
@@ -102,7 +113,7 @@ class ViewPrototype:
                     data.update(updated_fragment)
             except KeyError:
                 raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
-                                      '`{0}` dump: {2}').format(_KW_CONFIG_URL_FIELDS, endpoint_self.__name__,
+                                      '`{0}` dump: {2}').format(_KW_CONFIG_URL_FIELDS, endpoint_self.__class__.__name__,
                                                                 json.dumps(config[_KW_CONFIG_URL_FIELDS])))
 
         def get_context():
@@ -127,10 +138,10 @@ class ViewPrototype:
         try:
             if isinstance(result, int):
                 # result: int
-                return Response(None, result)
+                return ViewPrototype.postprocess_response(Response(None, result))
             elif isinstance(result, HttpResponseBase):
                 # result: Response
-                return result
+                return ViewPrototype.postprocess_response(result)
 
             status_code = None
             if isinstance(result, tuple) and len(result) == 2:
@@ -140,7 +151,7 @@ class ViewPrototype:
 
             if isinstance(result, dict) or isinstance(result, list):
                 # result: dict
-                return Response(result, status=status_code)
+                return ViewPrototype.postprocess_response(Response(result, status=status_code))
             raise TypeError()
         except (TypeError, AssertionError, KeyError):
             raise AssertionError(
@@ -164,19 +175,21 @@ class MetaEndpoint(type):
 
     @classmethod
     def transform_namespace(mcs, clsname, namespace):
-        assert 'serializer' in namespace, (
-            'Field `serializer` is required for an endpoint definition.\n'
-            'Offending Endpoint `{}`'
-        ).format(clsname)
+        skip_model_checks = namespace.get('custom', False)
 
-        try:
-            if not issubclass(namespace['serializer'], BaseSerializer):
-                raise AssertionError()
-        except:
-            raise AssertionError('Field `serializer` must be a class extending `BaseSerializer`.\n'
-                                 'Offending Endpoint `{}`'.format(clsname))
+        if not skip_model_checks:
+            assert 'serializer' in namespace, (
+                'Field `serializer` is required for an endpoint definition.\n'
+                'Offending Endpoint `{}`'
+            ).format(clsname)
+            try:
+                if not issubclass(namespace['serializer'], BaseSerializer):
+                    raise AssertionError()
+            except:
+                raise AssertionError('Field `serializer` must be a class extending `BaseSerializer`.\n'
+                                     'Offending Endpoint `{}`'.format(clsname))
 
-        if 'model' not in namespace:
+        if not skip_model_checks and 'model' not in namespace:
             assert hasattr(namespace['serializer'], 'Meta') and hasattr(namespace['serializer'].Meta, 'model'), (
                 'Explicit `model` field is missing and trying to get\n'
                 'the `model` from the `Meta` declared on the given serializer failed\n'
@@ -184,7 +197,7 @@ class MetaEndpoint(type):
             ).format(clsname)
             namespace['model'] = namespace['serializer'].Meta.model
 
-        namespace['config'] = mcs.transform_config(clsname, namespace.get('config', {}))
+        namespace['config'] = mcs.transform_config(clsname, namespace.get('config', {}), skip_model_checks)
         return namespace
 
     @classmethod
@@ -206,7 +219,7 @@ class MetaEndpoint(type):
         return result
 
     @classmethod
-    def transform_config(mcs, clsname, config):
+    def transform_config(mcs, clsname, config, skip_model_checks=False):
         assert isinstance(config, dict), (
             'Endpoint `config` field must be of type `dict`. Offending endpoint `{}`'
         ).format(clsname)
@@ -223,7 +236,7 @@ class MetaEndpoint(type):
                     '`{}` {} config contains unknown keys: `{}`.'
                 ).format(clsname, method_name, ', '.join(sorted(set(method_config.keys()).difference(_KW_ALL))))
 
-                if method_name == 'patch':
+                if method_name == 'patch' and not skip_model_checks:
                     assert _KW_CONFIG_QUERYSET in method_config, (
                         'Endpoint `patch` method config must include the `{}` attribute.\n'
                         'Offending endpoint: `{}`'
@@ -243,7 +256,7 @@ class MetaEndpoint(type):
                             '`filter_func(queryset, value)` in endpoint `{}`'
                         ).format(_KW_CONFIG_FILTERS, clsname)
 
-                elif method_name == 'delete':
+                elif method_name == 'delete' and not skip_model_checks:
                     raise AssertionError(('`config` for `delete` must include '
                                           '`{}` field for endpoint `{}`').format(_KW_CONFIG_QUERYSET, clsname))
 
@@ -293,7 +306,9 @@ class Endpoint(metaclass=MetaEndpoint):
                                         'Did you forget to specify the `config` attribute?\n'
                                         'Offending endpoint: `{0}`'
                                         ).format(cls.__qualname__))
-        return partial(ViewPrototype.respond, cls())
+        view_func = partial(ViewPrototype.respond, cls())
+        view_func.__name__, view_func.__module__, view_func.__doc__ = cls.__name__, cls.__module__, cls.__doc__
+        return api_view(tuple(cls.config.keys()))(view_func)
 
     @classmethod
     def make_serializer(cls, context: RequestContext, data=empty, many=None, **kwargs) -> ValidatedSerializer:
@@ -344,9 +359,9 @@ class Endpoint(metaclass=MetaEndpoint):
         return ValidatedSerializer.validate_and_save(serializer), 200
 
     def on_delete(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
-        if context.queryset is None:
-            raise EndpointError(status.HTTP_404_NOT_FOUND)
-
-        serializer = self.make_serializer(context)
+        serializer = self.make_serializer(context, context.data)
         serializer.delete()
-        return serializer.data
+        try:
+            return serializer.data
+        except AssertionError:
+            return serializer.initial_data

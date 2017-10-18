@@ -55,7 +55,10 @@ class EndpointBaseViewLogicTests(TestCase):
         return type('RequestMock', tuple(), dict(
             method=method,
             user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous)),
-            data=data,
+            POST=data,
+            _post=data,
+            encoding='utf8',
+            META={},
             GET=query_params or {}
         ))
 
@@ -485,7 +488,7 @@ class EndpointBaseViewLogicTests(TestCase):
 
         resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
         self.assertEqual(resp.status_code, 400)
-        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
 
     def test_default_put_query_raises_no_data_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -499,7 +502,7 @@ class EndpointBaseViewLogicTests(TestCase):
 
         resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
         self.assertEqual(resp.status_code, 400)
-        self.assertDictEqual(resp.data, {'non_field_errors': ['No data provided']})
+        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
 
     def test_default_put_query_raises_incomplete_data_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -678,6 +681,10 @@ class EndpointDefinitionLogicTests(TestCase):
             class MyEndpoint(Endpoint):
                 pass
         self.assertIn('`serializer` is required', ex.exception.args[0])
+
+    def test_empty_definition_with_custom_set_positive(self):
+        class MyEndpoint(Endpoint):
+            custom = True
 
     def test_serializer_is_arbitrary_object_negative(self):
         with self.assertRaises(AssertionError) as ex:
