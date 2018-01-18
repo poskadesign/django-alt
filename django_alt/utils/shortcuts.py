@@ -255,3 +255,19 @@ that a callable asserts that a given condition is true
 after its code block is executed
 """
 ensures = valid_if
+
+"""
+TODO:
+dict validators as higher order functions, i.e.:
+
+mydict = dict(a=1, b=2)
+required = make_required(mydict)
+required('a')
+
+or maybe even better and more legible
+
+dict_validator = make_validator(mydict)
+dict_validator.required('a')
+dict_validator.required_all('a', 'b', 'd')
+dict_validator.if_in('a', lambda a: a.lower())
+"""
