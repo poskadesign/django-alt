@@ -30,6 +30,14 @@ class ddict(dict):
             super().__init__(iterable)
         else:
             super().__init__(**kwargs)
+        for k, v in self.items():
+            if isinstance(v, dict):
+                self[k] = ddict(v)
+            elif isinstance(v, list):
+                for i, list_item in enumerate(v):
+                    if isinstance(list_item, dict):
+                        v[i] = ddict(list_item)
+
 
     def __iter__(self):
         return self.items().__iter__()

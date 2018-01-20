@@ -9,14 +9,14 @@ from django_alt.contexts import RequestContext
 class ValidatedManager:
     def __init__(self, model_class: Type[Model],
                  validator_class: Type[Validator], context: Type[RequestContext] = None, **kwargs):
-        self.context = context
+        self.request_context = context
         self.model_class = model_class
         self.validator_class = validator_class
         self.validator = None
 
     def make_validator(self, attrs, **kwargs):
         kwargs.setdefault('model', self.model_class)
-        kwargs.setdefault('context', self.context)
+        kwargs.setdefault('context', self.request_context)
         self.validator = self.validator_class(attrs, **kwargs)
         return self.validator
 

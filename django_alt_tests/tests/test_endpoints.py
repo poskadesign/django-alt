@@ -1,8 +1,15 @@
 import inspect
+from functools import partial
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
-from django.test import TestCase
-from django_alt.endpoints import Endpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
+from django.http import HttpRequest
+from django.test import TestCase, RequestFactory
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.request import Request
+from rest_framework.views import APIView
+
+from django_alt.endpoints import Endpoint as DefaultEndpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
 from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
@@ -12,6 +19,24 @@ from rest_framework.utils.serializer_helpers import ReturnList
 
 from django_alt.validators import Validator
 from django_alt_tests.conf.models import ModelA
+
+
+class Endpoint(DefaultEndpoint):
+    custom = True
+
+    @classmethod
+    def as_view(cls):
+        """
+        Necessary to overcome DRF updates
+        """
+        if not len(cls.config):
+            raise ImproperlyConfigured(('You are trying to call `as_view` on an endpoint with an empty config.\n'
+                                        'Did you forget to specify the `config` attribute?\n'
+                                        'Offending endpoint: `{0}`'
+                                        ).format(cls.__qualname__))
+        view_func = partial(ViewPrototype.respond, cls())
+        view_func.__name__, view_func.__module__, view_func.__doc__ = cls.__name__, cls.__module__, cls.__doc__
+        return view_func
 
 
 class ConcreteSerializer(ValidatedSerializer):
@@ -52,15 +77,16 @@ class EndpointBaseViewLogicTests(TestCase):
         return self.EBase.as_view()(self.mock_request('GET', is_anonymous))
 
     def mock_request(self, method, is_anonymous=False, data=None, query_params=None):
-        return type('RequestMock', tuple(), dict(
-            method=method,
-            user=type('UserMock', tuple(), dict(is_anonymous=is_anonymous)),
-            POST=data,
-            _post=data,
-            encoding='utf8',
-            META={},
-            GET=query_params or {}
-        ))
+        class MockedHttpRequest(HttpRequest):
+            def __init__(self):
+                super().__init__()
+                self.method = method
+                self.user = type('UserMock', tuple(), dict(is_anonymous=is_anonymous, is_active=True))
+                self.data = data
+                self.encoding = 'utf8'
+                self.GET = query_params or {}
+
+        return MockedHttpRequest()
 
     def test_should_return_405_for_nonexistent_method_positive(self):
         req = self.mock_request('POST')
@@ -450,6 +476,7 @@ class EndpointBaseViewLogicTests(TestCase):
             }
 
         count = ModelA.objects.all().count()
+
         resp = ConcreteEndpoint.as_view()(self.mock_request('DELETE', data={'field_1': 'updated'}))
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, {'id': None, 'field_2': 1, 'field_1': 'a'})
@@ -488,7 +515,8 @@ class EndpointBaseViewLogicTests(TestCase):
 
         resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
         self.assertEqual(resp.status_code, 400)
-        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
+        self.assertDictEqual(resp.data,
+                             {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
 
     def test_default_put_query_raises_no_data_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -502,7 +530,8 @@ class EndpointBaseViewLogicTests(TestCase):
 
         resp = ConcreteEndpoint.as_view()(self.mock_request('PUT'))
         self.assertEqual(resp.status_code, 400)
-        self.assertDictEqual(resp.data, {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
+        self.assertDictEqual(resp.data,
+                             {'field_2': ['This field is required.'], 'field_1': ['This field is required.']})
 
     def test_default_put_query_raises_incomplete_data_handler_positive(self):
         class ConcreteEndpoint(Endpoint):
@@ -558,7 +587,8 @@ class EndpointBaseViewLogicTests(TestCase):
             }
 
         self.assertEqual(ModelA.objects.count(), 2)
-        resp = ConcreteEndpoint.as_view()(self.mock_request('PUT', data=[{'field_1': 'x', 'field_2': 5}, {'field_1': 'y', 'field_2': 6}]))
+        resp = ConcreteEndpoint.as_view()(
+            self.mock_request('PUT', data=[{'field_1': 'x', 'field_2': 5}, {'field_1': 'y', 'field_2': 6}]))
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data, [{'id': 3, 'field_1': 'x', 'field_2': 5}, {'id': 4, 'field_1': 'y', 'field_2': 6}])
         self.assertEqual(ModelA.objects.count(), 4)
@@ -641,6 +671,7 @@ class EndpointBaseViewLogicTests(TestCase):
 
     def test_default_get_with_single_filter_positive(self):
         called = None
+
         def first_filter(objects, value):
             nonlocal called
             called = value
@@ -666,11 +697,13 @@ class EndpointBaseViewLogicTests(TestCase):
         resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}]))
         self.assertEqual(resp.data, [{'id': 1, 'field_2': 1, 'field_1': 'a'}, {'id': 2, 'field_2': 2, 'field_1': 'b'}])
 
-        resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'first': 'param'}))
+        resp = ConcreteEndpoint.as_view()(
+            self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'first': 'param'}))
         self.assertDictEqual(resp.data, {'id': 1, 'field_2': 1, 'field_1': 'a'})
         self.assertEqual(called, 'param')
 
-        resp = ConcreteEndpoint.as_view()(self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'last': 'param2'}))
+        resp = ConcreteEndpoint.as_view()(
+            self.mock_request('GET', data=[{'field_1': 'y', 'field_2': 1337}], query_params={'last': 'param2'}))
         self.assertDictEqual(resp.data, {'id': 2, 'field_2': 2, 'field_1': 'b'})
         self.assertEqual(called, 'param2')
 

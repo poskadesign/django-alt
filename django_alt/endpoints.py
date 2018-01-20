@@ -359,8 +359,8 @@ class Endpoint(metaclass=MetaEndpoint):
         return ValidatedSerializer.validate_and_save(serializer), 200
 
     def on_delete(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
-        serializer = self.make_serializer(context, context.data)
-        serializer.delete()
+        serializer = self.make_serializer(context)
+        serializer.delete(context.data)
         try:
             return serializer.data
         except AssertionError:
