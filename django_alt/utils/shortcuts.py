@@ -270,4 +270,12 @@ dict_validator = make_validator(mydict)
 dict_validator.required('a')
 dict_validator.required_all('a', 'b', 'd')
 dict_validator.if_in('a', lambda a: a.lower())
+
+new shortcuts:
+    def not_null(value)
+    def is_lte(value: Union[str, int], boundary)
+        ''' string length and number value '''
+    def is_gte(value: Union[str, int], boundary)
+    def is_lt
+    def is_gt
 """
