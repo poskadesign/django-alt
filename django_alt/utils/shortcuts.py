@@ -175,6 +175,16 @@ def first_defined(*args):
     return None
 
 
+def pluck(*keys, container: dict):
+    """
+    Creates a new dict from a given one by selecting only desired keys.
+    :param container: container to pluck
+    :param keys: keys to take
+    :return: new dictionary
+    """
+    return {k: v for (k, v) in container.items() if k in keys}
+
+
 def prohibited(key: str, container: dict = None):
     """
     shortcut for raising a validation error when a prohibited field is in the container.

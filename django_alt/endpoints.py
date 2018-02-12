@@ -129,8 +129,8 @@ class ViewPrototype:
                     # an object is then created instead
                     raise
                 queryset = None
-            return RequestContext(request, data=endpoint_self.transform_data(data), queryset=queryset, url_args=args,
-                                  url_kwargs=kwargs, query_params=query_params)
+            return RequestContext(request, data=endpoint_self.transform_input_data(data), queryset=queryset,
+                                  url_args=args, url_kwargs=kwargs, query_params=query_params)
 
         responder = getattr(endpoint_self, 'on_' + method)
         result = ViewPrototype.defuse_response(responder, get_context)
@@ -141,6 +141,7 @@ class ViewPrototype:
                 return ViewPrototype.postprocess_response(Response(None, result))
             elif isinstance(result, HttpResponseBase):
                 # result: Response
+                result.data = endpoint_self.transform_output_data(result.data) or result.data
                 return ViewPrototype.postprocess_response(result)
 
             status_code = None
@@ -151,6 +152,7 @@ class ViewPrototype:
 
             if isinstance(result, dict) or isinstance(result, list):
                 # result: dict
+                result = endpoint_self.transform_output_data(result) or result
                 return ViewPrototype.postprocess_response(Response(result, status=status_code))
             raise TypeError()
         except (TypeError, AssertionError, KeyError):
@@ -338,7 +340,10 @@ class Endpoint(metaclass=MetaEndpoint):
     Method independent logic
     """
 
-    def transform_data(self, data: ddict) -> Union[ddict, None]:
+    def transform_input_data(self, data: Union[ddict, list]) -> Union[ddict, list, None]:
+        return data
+
+    def transform_output_data(self, data: Union[ddict, list]) -> Union[ddict, list, None]:
         return data
 
     """
@@ -366,8 +371,8 @@ class Endpoint(metaclass=MetaEndpoint):
         return ValidatedSerializer.validate_and_save(serializer), 200
 
     def on_delete(self, context: RequestContext) -> Union[Response, int, dict, Tuple[dict, int]]:
-        serializer = self.make_serializer(context)
-        serializer.delete(context.data)
+        serializer = self.make_serializer(context, context.data)
+        serializer.delete()
         try:
             return serializer.data
         except AssertionError:

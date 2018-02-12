@@ -23,8 +23,9 @@ class Endpoint(metaclass=MetaEndpoint):
                 'Did you forget to specify the `config` attribute?\n'
                 'Offending endpoint: `{0}`'
             ).format(cls.__name__))
-        return cls.view.as_view
-
+        return cls.view.as_view(**kwargs)
+        
+        
     def __call__(self, *args, **kwargs):
         """
         Produces a more descriptive error message, when a call

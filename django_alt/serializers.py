@@ -7,18 +7,16 @@ class ValidatedListSerializer(serializers.ListSerializer):
     """
     Overridden default `ListSerializer` class to support multiple delete.
     """
-    def delete(self, initial_data=None):
+    def delete(self):
         assert self.instance is not None, (
             'Instances were not passed to `{}` constructor\n'
             'but `delete` was called.'
             'Did you forget to pass the queryset when constructing the serializer?'
         ).format(self.__class__.__qualname__)
 
-        initial_data = initial_data or {}
-
         result = list(self.instance)
         for instance in result:
-            self.child._do_delete_pre(instance, **initial_data)
+            self.child._do_delete_pre(instance)
 
         self.instance.delete()
         self.instance = None
@@ -28,7 +26,7 @@ class ValidatedListSerializer(serializers.ListSerializer):
             return i
 
         self._validated_data = [
-            self.child._do_delete_post(remove_pk(instance), **initial_data) for instance in result
+            self.child._do_delete_post(remove_pk(instance)) for instance in result
         ]
         return self.validated_data
 
@@ -86,8 +84,8 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
     def update(self, instance, validated_data):
         return self.do_update(instance, **validated_data)
 
-    def delete(self, initial_data=None):
-        return self.do_delete(self.instance, **(initial_data or {}))
+    def delete(self):
+        return self.do_delete(self.instance, **self.initial_data)
 
     def to_representation(self, instance):
         if self.no_validation:

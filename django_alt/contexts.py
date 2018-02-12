@@ -13,7 +13,7 @@ class RequestContext:
         self.url_args = url_args
         self.url_kwargs = url_kwargs
         self.query_params = query_params
-        self._data = ddict(data)
+        self._data = data
 
     @property
     def queryset_has_many(self):

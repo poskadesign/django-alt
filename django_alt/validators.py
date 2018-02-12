@@ -221,7 +221,6 @@ class Validator(LifecycleHooks, Phasers):
             if hasattr(self, name) and callable(getattr(self, name)):
                 self.attrs[field] = getattr(self, name)(self.attrs[field])
 
-
     def prepare_read_fields(self, instance):
         """
         If subclass defines functions named read_<field_name>
@@ -277,13 +276,22 @@ class ContainerValidator(Validator):
     shortcuts.
     """
     __empty__ = lambda *args, **kwargs: None
-    required = required_all = __empty__
+    required = required_all = pluck = __empty__
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         validators = (
-            shortcuts.required, shortcuts.required_all
+            shortcuts.required, shortcuts.required_all, shortcuts.pluck
         )
 
         for validator in validators:
             setattr(self, validator.__name__, partial(validator, container=self.attrs))
+
+    def rename_attr(self, key, new_key):
+        """
+        Pops the value at `key` in `self.attrs` and sets that value at `new_key`.
+        Raises `KeyError` if `key` not found in `self.attrs`
+        :param key: the key to find value at
+        :param new_key: the key to set value on
+        """
+        self.attrs[new_key] = self.attrs.pop(key)
