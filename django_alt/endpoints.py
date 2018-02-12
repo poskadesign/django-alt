@@ -129,7 +129,7 @@ class ViewPrototype:
                     # an object is then created instead
                     raise
                 queryset = None
-            return RequestContext(request, data=data, queryset=queryset, url_args=args,
+            return RequestContext(request, data=endpoint_self.transform_data(data), queryset=queryset, url_args=args,
                                   url_kwargs=kwargs, query_params=query_params)
 
         responder = getattr(endpoint_self, 'on_' + method)
@@ -333,6 +333,13 @@ class Endpoint(metaclass=MetaEndpoint):
     def _create_and_serialize(self, context, allow_many=undefined):
         serializer = self.make_serializer(context, context.data, context.data_has_many if allow_many else False)
         return ValidatedSerializer.validate_and_save(serializer)
+
+    """
+    Method independent logic
+    """
+
+    def transform_data(self, data: ddict) -> Union[ddict, None]:
+        return data
 
     """
     Default view handler implementations

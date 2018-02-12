@@ -1,12 +1,14 @@
 import inspect
 from abc import abstractmethod
 from collections import OrderedDict
+from functools import partial
 
 from typing import Type
 
 from django.db.models import Model
 
 from django_alt.dotdict import ddict, undefined
+from django_alt.utils import shortcuts
 
 
 class Phasers:
@@ -207,11 +209,6 @@ class Validator(LifecycleHooks, Phasers):
         as the parameter and sets the return value on the attrs dict
         :return: None
         """
-        for field in sorted(self.attrs.keys()):
-            name = ''.join((self.FIELD_CLEAN_PREFIX, field))
-            if hasattr(self, name) and callable(getattr(self, name)):
-                self.attrs[field] = getattr(self, name)(self.attrs[field])
-
         if self._is_create is not None and self._is_create is True:
             for default_func in (f for f in dir(self) if
                                  f.startswith(self.FIELD_DEFAULT_PREFIX) and callable(getattr(self, f))):
@@ -219,11 +216,17 @@ class Validator(LifecycleHooks, Phasers):
                 if field not in self.attrs:
                     self.attrs[field] = getattr(self, default_func)()
 
+        for field in sorted(self.attrs.keys()):
+            name = ''.join((self.FIELD_CLEAN_PREFIX, field))
+            if hasattr(self, name) and callable(getattr(self, name)):
+                self.attrs[field] = getattr(self, name)(self.attrs[field])
+
+
     def prepare_read_fields(self, instance):
         """
         If subclass defines functions named read_<field_name>
         where field_name corresponds to a field declared on the
-        serializer, executes such functions with the field's 
+        serializer, executes such functions with the field's
         representation value and read instance as the parameter.
         Such functions are expected to returned the prepared value
         that is written to the representation dict.
@@ -266,3 +269,21 @@ class Validator(LifecycleHooks, Phasers):
         :return: None
         """
         pass
+
+
+class ContainerValidator(Validator):
+    """
+    Extends the default `Validator` by allowing an easier usage of dictionary validation
+    shortcuts.
+    """
+    __empty__ = lambda *args, **kwargs: None
+    required = required_all = __empty__
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        validators = (
+            shortcuts.required, shortcuts.required_all
+        )
+
+        for validator in validators:
+            setattr(self, validator.__name__, partial(validator, container=self.attrs))

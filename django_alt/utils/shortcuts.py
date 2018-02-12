@@ -60,7 +60,13 @@ def is_iterable(obj):
     :param obj: object to check
     :return: whether the object is an iterable or not
     """
-    return not isinstance(obj, str) and isinstance(obj, collections.Iterable)
+    if not isinstance(obj, str):
+        try:
+            iter(obj)
+            return True
+        except TypeError:
+            pass
+    return False
 
 
 def make_error(key_or_list, error_or_list) -> dict:
