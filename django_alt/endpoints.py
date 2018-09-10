@@ -110,7 +110,14 @@ class ViewPrototype:
                         ).format(_KW_CONFIG_URL_FIELDS, endpoint_self.__class__.__name__, request.method, data)
                         member.update(updated_fragment)
                 else:
+                    # seems data can be dict or QueryDict
+                    # when QueryDict  _mutable is True, update fails, so there is workaround  
+                    if hasattr(data, '_mutable'):
+                        tmp_stored_mutable_flag =  data._mutable
+                        data._mutable = True
                     data.update(updated_fragment)
+                    if hasattr(data, '_mutable'):
+                        data._mutable = tmp_stored_mutable_flag
             except KeyError:
                 raise AssertionError(('Key supplied in `{0}` was not present in the url dict at endpoint `{1}`.\n'
                                       '`{0}` dump: {2}').format(_KW_CONFIG_URL_FIELDS, endpoint_self.__class__.__name__,
