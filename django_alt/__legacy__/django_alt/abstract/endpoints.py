@@ -10,7 +10,16 @@ from rest_framework.views import APIView
 
 from ..utils.shortcuts import invalid, try_cast, first_defined
 
-base_view_class = APIView
+class APIView_WithGetSerializer(APIView):
+    def get_serializer(self, *args, **kwargs):
+        """
+        taken from GenericAPIView
+        needed by SchemaGenerator
+        """
+        serializer_class = self.endpoint_class.serializer
+        return serializer_class(*args, **kwargs)
+
+base_view_class = APIView_WithGetSerializer  # was APIView
 http_methods = ('get', 'post', 'patch', 'put', 'delete')
 
 KW_CONFIG_FILTERS = 'filters'
