@@ -317,7 +317,9 @@ class Endpoint(metaclass=MetaEndpoint):
                                         ).format(cls.__qualname__))
         view_func = partial(ViewPrototype.respond, cls())
         view_func.__name__, view_func.__module__, view_func.__doc__ = cls.__name__, cls.__module__, cls.__doc__
-        return api_view(tuple(cls.config.keys()))(view_func)
+        result = api_view(tuple(cls.config.keys()))(view_func)
+        result.cls.get_serializer = lambda _, *args, **kwargs: cls.serializer(*args, **kwargs)  # for SchemaGenerator to "see" serializer Fields
+        return result
 
     @classmethod
     def make_serializer(cls, context: RequestContext, data=empty, many=None, **kwargs) -> ValidatedSerializer:
