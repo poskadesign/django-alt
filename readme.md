@@ -73,7 +73,7 @@ class TodoSerializer(ValidatedModelSerializer):
     class Meta:
         model = Todo
         fields = '__all__'
-        validator_class = TodoValidator
+        validator = TodoValidator
 ```
 
 ### Example: endpoint customization
