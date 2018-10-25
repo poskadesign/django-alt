@@ -20,7 +20,7 @@ def generate_serializer(validator_class):
             validator_class = cls
 
         def create(self, validated_data):
-            self.Meta.validator_instance.did_create(validated_data, validated_data)
+            self.validator_instance.did_create(validated_data, validated_data)
             return validated_data
 
     return ConcreteSerializer
