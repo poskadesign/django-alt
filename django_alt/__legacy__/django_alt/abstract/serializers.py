@@ -30,7 +30,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         self.permission_test = permission_test
         self.did_check_permission = False
 
-        self.Meta.validator_instance = self._instantiate_validator(request=request, **kwargs)
+        self.validator_instance = self._instantiate_validator(request=request, **kwargs)
         super().__init__(instance, data, **kwargs)
 
     @staticmethod
@@ -50,7 +50,7 @@ class BaseValidatedSerializer(serializers.Serializer):
         serializer subclasses.
         :return: validator instance
         """
-        return self.Meta.validator_instance
+        return self.validator_instance
 
     @property
     def is_update(self) -> bool:
