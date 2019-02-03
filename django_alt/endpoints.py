@@ -136,8 +136,12 @@ class ViewPrototype:
                     # an object is then created instead
                     raise
                 queryset = None
-            return RequestContext(request, data=endpoint_self.transform_input_data(data), queryset=queryset,
-                                  url_args=args, url_kwargs=kwargs, query_params=query_params)
+            return RequestContext(request,
+                                  data=endpoint_self.transform_input_data(data),
+                                  queryset=queryset,
+                                  url_args=args,
+                                  url_kwargs=kwargs,
+                                  query_params=query_params)
 
         responder = getattr(endpoint_self, 'on_' + method)
         result = ViewPrototype.defuse_response(responder, get_context)
@@ -291,6 +295,7 @@ class Endpoint(metaclass=MetaEndpoint):
     """
     config = ddict()
     model, serializer = None, None
+    custom = False
 
     def __call__(self, *args, **kwargs):
         """
@@ -318,7 +323,8 @@ class Endpoint(metaclass=MetaEndpoint):
         view_func = partial(ViewPrototype.respond, cls())
         view_func.__name__, view_func.__module__, view_func.__doc__ = cls.__name__, cls.__module__, cls.__doc__
         result = api_view(tuple(cls.config.keys()))(view_func)
-        result.cls.get_serializer = lambda _, *args, **kwargs: cls.serializer(*args, **kwargs)  # for SchemaGenerator to "see" serializer Fields
+        # for SchemaGenerator to access serializer Fields
+        result.cls.get_serializer = lambda _, *args, **kwargs: cls.serializer(*args, **kwargs)
         return result
 
     @classmethod
