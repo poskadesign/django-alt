@@ -57,6 +57,8 @@ class ValidatedSerializer(serializers.Serializer, ValidatedManager):
         list_serializer = getattr(cls.Meta, 'list_serializer_class', None)
         if list_serializer is None:
             setattr(cls.Meta, 'list_serializer_class', ValidatedSerializer.Meta.list_serializer_class)
+        # if not popped, overrides Django Rest Framework's context variable
+        kwargs.pop('context')
         return super().many_init(*args, **kwargs)
 
     @staticmethod
