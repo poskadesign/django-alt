@@ -3,20 +3,15 @@ from functools import partial
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.http import HttpRequest
-from django.test import TestCase, RequestFactory
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.request import Request
-from rest_framework.views import APIView
-
-from django_alt.endpoints import Endpoint as DefaultEndpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
-from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
+from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.utils.serializer_helpers import ReturnList
 
+from django_alt.endpoints import Endpoint as DefaultEndpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
+from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
 from django_alt.validators import Validator
 from django_alt_tests.conf.models import ModelA
 

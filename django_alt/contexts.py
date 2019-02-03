@@ -1,5 +1,4 @@
 from django_alt.utils.shortcuts import queryset_has_many
-from django_alt.dotdict import ddict
 
 
 class RequestContext:
