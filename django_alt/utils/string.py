@@ -15,5 +15,5 @@ def underscore_to_camelcase(value):
 
 
 def camelcase_to_underscore(value):
-    s1 = _first_cap_re.sub(r'\1_\2', value)
-    return _all_cap_re.sub(r'\1_\2', s1).lower()
+    words = re.findall(r'[A-Z]?[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|\d|\W|$)|\d+', value)
+    return '_'.join(map(str.lower, words))

@@ -1,4 +1,4 @@
-from django.test import TestCase
+from unittest import TestCase
 
 from django_alt.dotdict import ddict, undefined
 
@@ -115,6 +115,11 @@ class DdictTests(TestCase):
         self.assertDictEqual(a, dict(a=1, b=2, c=3))
         self.assertDictEqual(b2, dict(z=4))
         self.assertDictEqual(c, dict(a=1, b=2, c=3, z=4))
+
+    def test_set_attribute(self):
+        a = ddict()
+        a.foo = 42
+        self.assertEqual(dict(a)['foo'], 42)
 
 
 class UndefinedTests(TestCase):

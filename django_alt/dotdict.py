@@ -49,8 +49,8 @@ class ddict(OrderedDict):
         except KeyError:
             return undefined
 
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+    __setattr__ = OrderedDict.__setitem__
+    __delattr__ = OrderedDict.__delitem__
 
     def __add__(self, other):
         if isinstance(other, dict):
