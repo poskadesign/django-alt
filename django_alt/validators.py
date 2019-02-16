@@ -170,10 +170,7 @@ class Validator(LifecycleHooks, Phasers):
 
     @attrs.setter
     def attrs(self, value):
-        if not isinstance(value, OrderedDict):
-            self._attrs = ddict(value)
-        else:
-            self._attrs = value
+        self._attrs = ddict(value)
 
     def validate_checks(self):
         """

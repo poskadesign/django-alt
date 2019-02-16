@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from itertools import chain
 
 
@@ -20,7 +21,7 @@ class undefined(metaclass=_undefined_meta):
         return False
 
 
-class ddict(dict):
+class ddict(OrderedDict):
     def __init__(self, iterable=None, **kwargs):
         if iterable is not None:
             if isinstance(iterable, dict):
