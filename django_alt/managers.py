@@ -59,6 +59,30 @@ class ValidatedManager:
 
         return instance
 
+    def do_create_many(self, list_of_attrs, object_manager=None):
+        list_of_validators = []
+        for attrs in list_of_attrs:
+            validator = self.make_validator(attrs, is_create=True)
+            self.validate_only()
+            list_of_validators.append(validator)
+
+        for validator in list_of_validators:
+            validator.will_create()
+            validator.will_create_or_update()
+            validator.base_db()
+
+        object_manager = self.model_class.objects if not object_manager else object_manager
+        list_of_instances = object_manager.bulk_create(
+            self.model_class(**validator.attrs) for validator in list_of_validators
+        )
+
+        for validator, instance in zip(list_of_validators, list_of_instances):
+            validator.did_create(instance)
+            validator.did_create_or_update(instance)
+            self.validator.post()
+
+        return list_of_instances
+
     def create_instance(self):
         return self.model_class.objects.create(**self.validator.attrs) if self.model_class is not None else None
 
