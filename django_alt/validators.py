@@ -142,7 +142,11 @@ class Validator(LifecycleHooks, Phasers):
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
         :param [context]: any data that gets passed as serializer kwargs
         """
-        self._attrs = ddict(attrs)
+        if isinstance(attrs, dict):
+            self._attrs = ddict(attrs)
+        else:
+            self._attrs = [ddict(attr_dict) for attr_dict in attrs]
+
         self.model = model
         self.context = context
 

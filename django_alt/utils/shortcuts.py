@@ -227,7 +227,7 @@ def required_all(keys: list, container: dict = None):
     :param container: container to search
     :raises: serializer.ValidationError
     """
-    if container:
+    if container is not None:
         difference = set(keys).difference(container.keys())
         if len(difference):
             invalid(difference, 'This field is required.')
