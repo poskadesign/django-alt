@@ -3,6 +3,7 @@ from abc import abstractmethod
 from collections import OrderedDict
 from functools import partial
 
+from django_alt.utils.iterables import convert_to_ddict
 from typing import Type
 
 from django.db.models import Model
@@ -142,10 +143,7 @@ class Validator(LifecycleHooks, Phasers):
         :param [model]: model class of the serialized object (if serialized by a ModelSerializer)
         :param [context]: any data that gets passed as serializer kwargs
         """
-        if isinstance(attrs, dict):
-            self._attrs = ddict(attrs)
-        else:
-            self._attrs = [ddict(attr_dict) for attr_dict in attrs]
+        self._attrs = convert_to_ddict(attrs)
 
         self.model = model
         self.context = context

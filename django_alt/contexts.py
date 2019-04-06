@@ -1,3 +1,4 @@
+from django_alt.utils.iterables import convert_to_ddict
 from django_alt.utils.shortcuts import queryset_has_many
 
 
@@ -12,7 +13,7 @@ class RequestContext:
         self.url_args = url_args
         self.url_kwargs = url_kwargs
         self.query_params = query_params
-        self._data = data
+        self._data = convert_to_ddict(data)
 
     @property
     def queryset_has_many(self):

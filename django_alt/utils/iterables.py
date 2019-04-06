@@ -1,5 +1,8 @@
 from collections import Iterable
 
+from django_alt.dotdict import ddict
+from typing import Union
+
 
 def recursive_key_map(mapping_func, iterable):
     """
@@ -21,3 +24,10 @@ def recursive_key_map(mapping_func, iterable):
         return [recursive_key_map(mapping_func, value) for value in iterable]
     else:
         return iterable
+
+
+def convert_to_ddict(dict_or_iterable: Union[dict, Iterable]):
+    if isinstance(dict_or_iterable, dict):
+        return ddict(dict_or_iterable)
+    else:
+        return [ddict(attr_dict) for attr_dict in dict_or_iterable]
