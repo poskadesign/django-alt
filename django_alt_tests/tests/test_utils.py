@@ -34,11 +34,13 @@ class UtilsStringTests(TestCase):
     def test_underscore_to_camelcase(self):
         self.assertEqual(underscore_to_camelcase('first_name'), 'firstName')
         self.assertEqual(underscore_to_camelcase('underscore_to_camelcase'), 'underscoreToCamelcase')
-        self.assertEqual(underscore_to_camelcase('long__string'), 'long_String')
+        self.assertEqual(underscore_to_camelcase('long__string'), 'long_string')
         self.assertEqual(underscore_to_camelcase('search_tags_1'), 'searchTags1')
+        self.assertEqual(underscore_to_camelcase('upper_x'), 'upperX')
 
     def test_camelcase_to_underscore(self):
         self.assertEqual(camelcase_to_underscore('firstName'), 'first_name')
         self.assertEqual(camelcase_to_underscore('underscoreToCamelcase'), 'underscore_to_camelcase')
         self.assertEqual(camelcase_to_underscore('long_String'), 'long_string')
-        self.assertEqual(camelcase_to_underscore('searchTags1'), 'search_tags_1')
+        self.assertEqual(camelcase_to_underscore('searchTags1'), 'search_tags1')
+        self.assertEqual(camelcase_to_underscore('upperX'), 'upper_x')
