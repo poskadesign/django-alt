@@ -1,5 +1,8 @@
 # django-alt version changelog
 
+### 1.0.0b5
+ - multiple bugfixes.
+
 ### 1.0.0b4
  - added `recursive_key_map` to `utils/iterables`.
  - added `underscore_to_camelcase` and `camelcase_to_underscore` conversion functions 
