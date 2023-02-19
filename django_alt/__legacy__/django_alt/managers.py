@@ -75,6 +75,8 @@ class ValidatedManager:
         list_of_attrs = list(list_of_attrs)
         for attrs in list_of_attrs:
             self.validation_sequence(attrs)
+            attrs = coal(self.validator.will_create(attrs), attrs)
+            attrs = coal(self.validator.base_db(attrs), attrs)
             instances.append(self.model(**attrs))
 
         self.model.objects.bulk_create(instances)
