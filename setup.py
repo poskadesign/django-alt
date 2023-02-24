@@ -8,4 +8,5 @@ setup(name='django-alt',
       author_email='vilius@poska.lt',
       license='MIT',
       install_requires=['django', 'djangorestframework', 'typing'],
-      packages=find_packages() + ['django_alt_tests', 'django_alt_tests.conf', 'django_alt_tests.conf.migrations'])
+      packages=find_packages() + ['django_alt_tests', 'django_alt_tests.project', 'django_alt_tests.test_app',
+                                  'django_alt_tests.test_app.migrations'])
