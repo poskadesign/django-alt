@@ -5,7 +5,7 @@ from django.test import TestCase
 from django_alt.managers import ValidatedManager
 
 from django_alt.validators import Validator
-from django_alt_tests.conf.models import ModelA
+from test_app.models import ModelA
 
 
 class SampleValidator(Validator):

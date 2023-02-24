@@ -5,7 +5,7 @@ from django.test import TestCase
 from django_alt.serializers import ValidatedModelSerializer
 
 from django_alt.validators import Validator
-from django_alt_tests.conf.models import ModelA
+from test_app.models import ModelA
 
 
 class ConcreteValidator(Validator):

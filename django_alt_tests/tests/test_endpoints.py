@@ -13,7 +13,7 @@ from rest_framework.utils.serializer_helpers import ReturnList
 from django_alt.endpoints import Endpoint as DefaultEndpoint, _KW_CONFIG_URL_FIELDS, MetaEndpoint, ViewPrototype
 from django_alt.serializers import ValidatedSerializer, ValidatedModelSerializer
 from django_alt.validators import Validator
-from django_alt_tests.conf.models import ModelA
+from test_app.models import ModelA
 
 
 class Endpoint(DefaultEndpoint):
